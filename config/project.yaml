@@ -49,6 +49,11 @@ market_data:
   maximum_missing_ratio: 0.001
   adjustment_factor_jump_threshold: 0.05
 
+labels:
+  horizon_sessions: 21
+  relative_to: "cross_sectional_median"
+  top_quantile_fraction: 0.20
+
 portfolio:
   long_only: true
   fully_invested: true
