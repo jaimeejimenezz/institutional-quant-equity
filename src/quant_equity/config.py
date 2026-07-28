@@ -70,6 +70,8 @@ def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
         "runtime",
         "storage",
         "research",
+        "universe",
+        "market_data",
         "portfolio",
         "benchmarks",
     }

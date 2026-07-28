@@ -31,6 +31,22 @@ universe:
   eligibility_start_date: "2014-01-01"
   require_active: true
 
+market_data:
+  provider: "yfinance"
+  start_date: "2014-01-01"
+  end_date: null
+  interval: "1d"
+  auto_adjust: false
+  actions: true
+  repair: false
+  keep_na: true
+  timeout_seconds: 30
+  max_retries: 3
+  retry_wait_seconds: 5
+  minimum_observations: 1000
+  minimum_coverage_ratio: 0.90
+  extreme_return_threshold: 0.35
+
 portfolio:
   long_only: true
   fully_invested: true
