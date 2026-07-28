@@ -1,0 +1,36 @@
+project:
+  name: "Institutional Quant Equity Research Platform"
+  slug: "institutional-quant-equity"
+  version: "0.1.0"
+  description: "End-to-end quantitative equity research and portfolio construction platform."
+
+runtime:
+  random_seed: 42
+  log_level: "INFO"
+
+storage:
+  tabular_format: "parquet"
+  raw_data_dir: "data/raw"
+  interim_data_dir: "data/interim"
+  processed_data_dir: "data/processed"
+  reference_data_dir: "data/reference"
+  reports_dir: "reports"
+
+research:
+  market: "US"
+  currency: "USD"
+  start_date: "2014-01-01"
+  rebalance_frequency: "monthly"
+  prediction_horizon_sessions: 21
+
+portfolio:
+  long_only: true
+  fully_invested: true
+  target_positions: 20
+  maximum_weight_per_asset: 0.05
+  maximum_weight_per_sector: 0.25
+  transaction_cost_bps: 10
+
+benchmarks:
+  market: "SPY"
+  include_equal_weight_universe: true
