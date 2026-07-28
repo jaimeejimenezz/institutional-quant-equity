@@ -260,8 +260,17 @@ def normalize_market_data(
     normalized_ticker = ticker.strip().upper()
     data = provider_data.copy()
 
-    data.index.name = data.index.name or "Date"
-    data = data.reset_index()
+    existing_date_columns = [
+        column
+        for column in data.columns
+        if str(column).strip().lower() in {"date", "datetime"}
+    ]
+
+    if existing_date_columns:
+        data = data.reset_index(drop=True)
+    else:
+        data.index.name = data.index.name or "Date"
+        data = data.reset_index()
 
     date_candidates = [
         column

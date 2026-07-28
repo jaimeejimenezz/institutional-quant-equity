@@ -46,6 +46,8 @@ market_data:
   minimum_observations: 1000
   minimum_coverage_ratio: 0.90
   extreme_return_threshold: 0.35
+  maximum_missing_ratio: 0.001
+  adjustment_factor_jump_threshold: 0.05
 
 portfolio:
   long_only: true
