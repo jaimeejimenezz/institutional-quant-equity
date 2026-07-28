@@ -23,6 +23,14 @@ research:
   rebalance_frequency: "monthly"
   prediction_horizon_sessions: 21
 
+universe:
+  version: "v1"
+  expected_count: 50
+  construction_method: "static_curated_large_cap"
+  membership_mode: "current_constituents_applied_historically"
+  eligibility_start_date: "2014-01-01"
+  require_active: true
+
 portfolio:
   long_only: true
   fully_invested: true

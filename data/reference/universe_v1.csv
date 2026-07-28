@@ -1,0 +1,51 @@
+ticker,company_name,sector,industry,cik,start_date,end_date,is_active,inclusion_source
+AAPL,Apple Inc.,Information Technology,Technology Hardware,0000320193,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+MSFT,Microsoft Corporation,Information Technology,Systems Software,0000789019,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+NVDA,NVIDIA Corporation,Information Technology,Semiconductors,0001045810,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+AVGO,Broadcom Inc.,Information Technology,Semiconductors,0001730168,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+CSCO,Cisco Systems Inc.,Information Technology,Communications Equipment,0000858877,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+ORCL,Oracle Corporation,Information Technology,Application Software,0001341439,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+QCOM,QUALCOMM Incorporated,Information Technology,Semiconductors,0000804328,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+TXN,Texas Instruments Incorporated,Information Technology,Semiconductors,0000097476,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+GOOGL,Alphabet Inc.,Communication Services,Interactive Media and Services,0001652044,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+META,Meta Platforms Inc.,Communication Services,Interactive Media and Services,0001326801,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+NFLX,Netflix Inc.,Communication Services,Movies and Entertainment,0001065280,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+DIS,The Walt Disney Company,Communication Services,Movies and Entertainment,0001744489,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+AMZN,Amazon.com Inc.,Consumer Discretionary,Broadline Retail,0001018724,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+TSLA,Tesla Inc.,Consumer Discretionary,Automobile Manufacturers,0001318605,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+HD,The Home Depot Inc.,Consumer Discretionary,Home Improvement Retail,0000354950,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+MCD,McDonald's Corporation,Consumer Discretionary,Restaurants,0000063908,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+NKE,NIKE Inc.,Consumer Discretionary,Footwear,0000320187,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+LOW,Lowe's Companies Inc.,Consumer Discretionary,Home Improvement Retail,0000060667,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+WMT,Walmart Inc.,Consumer Staples,Consumer Staples Merchandise Retail,0000104169,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+COST,Costco Wholesale Corporation,Consumer Staples,Consumer Staples Merchandise Retail,0000909832,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+PG,The Procter & Gamble Company,Consumer Staples,Household Products,0000080424,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+KO,The Coca-Cola Company,Consumer Staples,Soft Drinks,0000021344,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+PEP,PepsiCo Inc.,Consumer Staples,Soft Drinks,0000077476,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+BRK-B,Berkshire Hathaway Inc.,Financials,Multi-Sector Holdings,0001067983,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+JPM,JPMorgan Chase & Co.,Financials,Diversified Banks,0000019617,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+BAC,Bank of America Corporation,Financials,Diversified Banks,0000070858,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+WFC,Wells Fargo & Company,Financials,Diversified Banks,0000072971,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+GS,The Goldman Sachs Group Inc.,Financials,Investment Banking and Brokerage,0000886982,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+V,Visa Inc.,Financials,Transaction and Payment Processing Services,0001403161,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+MA,Mastercard Incorporated,Financials,Transaction and Payment Processing Services,0001141391,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+LLY,Eli Lilly and Company,Health Care,Pharmaceuticals,0000059478,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+JNJ,Johnson & Johnson,Health Care,Pharmaceuticals,0000200406,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+ABBV,AbbVie Inc.,Health Care,Biotechnology,0001551152,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+UNH,UnitedHealth Group Incorporated,Health Care,Managed Health Care,0000731766,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+MRK,Merck & Co. Inc.,Health Care,Pharmaceuticals,0000310158,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+TMO,Thermo Fisher Scientific Inc.,Health Care,Life Sciences Tools and Services,0000970047,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+ABT,Abbott Laboratories,Health Care,Health Care Equipment,0000001800,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+CAT,Caterpillar Inc.,Industrials,Construction Machinery,0000018230,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+RTX,RTX Corporation,Industrials,Aerospace and Defense,0000101829,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+UNP,Union Pacific Corporation,Industrials,Rail Transportation,0000100885,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+UPS,United Parcel Service Inc.,Industrials,Air Freight and Logistics,0001090727,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+HON,Honeywell International Inc.,Industrials,Industrial Conglomerates,0000773840,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+CVX,Chevron Corporation,Energy,Integrated Oil and Gas,0000093410,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+COP,ConocoPhillips,Energy,Oil and Gas Exploration and Production,0001163165,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+EOG,EOG Resources Inc.,Energy,Oil and Gas Exploration and Production,0000821189,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+NEE,NextEra Energy Inc.,Utilities,Electric Utilities,0000753308,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+SO,The Southern Company,Utilities,Electric Utilities,0000092122,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+PLD,Prologis Inc.,Real Estate,Industrial REITs,0001045609,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+APD,Air Products and Chemicals Inc.,Materials,Industrial Gases,0000002969,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
+SHW,The Sherwin-Williams Company,Materials,Specialty Chemicals,0000089800,2014-01-01,,true,manual_large_cap_liquid_screen_2026-07-28
