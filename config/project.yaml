@@ -65,3 +65,19 @@ portfolio:
 benchmarks:
   market: "SPY"
   include_equal_weight_universe: true
+
+technical_features:
+  annualization_sessions: 252
+  momentum_12m_sessions: 252
+  momentum_6m_sessions: 126
+  skip_recent_sessions: 21
+  return_3m_sessions: 63
+  return_1m_sessions: 21
+  return_1w_sessions: 5
+  volatility_short_sessions: 20
+  volatility_long_sessions: 60
+  drawdown_sessions: 126
+  moving_average_short_sessions: 50
+  moving_average_long_sessions: 200
+  liquidity_short_sessions: 20
+  liquidity_long_sessions: 60
