@@ -81,3 +81,10 @@ technical_features:
   moving_average_long_sessions: 200
   liquidity_short_sessions: 20
   liquidity_long_sessions: 60
+
+technical_feature_processing:
+  winsor_lower_quantile: 0.01
+  winsor_upper_quantile: 0.99
+  minimum_cross_section_size: 10
+  minimum_sector_size: 2
+  sector_neutralization: true
