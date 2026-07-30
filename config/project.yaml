@@ -149,3 +149,12 @@ linear_models:
 
   max_iterations: 50000
   tolerance: 0.000001
+
+linear_model_evaluation:
+  target_column: "target_21d_excess"
+  top_label_column: "label_top_quintile"
+
+  quintiles: 5
+  top_fraction: 0.20
+  annualization_periods: 12
+  minimum_cross_section_size: 30
