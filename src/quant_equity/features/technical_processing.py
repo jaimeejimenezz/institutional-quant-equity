@@ -32,6 +32,17 @@ SECTOR_NEUTRAL_FEATURE_COLUMNS = tuple(
 
 TECHNICAL_MODEL_FEATURE_COLUMNS = SECTOR_NEUTRAL_FEATURE_COLUMNS
 
+SELECTED_TECHNICAL_FEATURE_COLUMNS = (
+    "amihud_illiquidity_20d_sector_neutral",
+    "reversal_1m_sector_neutral",
+    "volatility_60d_sector_neutral",
+    "distance_sma_50d_sector_neutral",
+    "beta_60d_market_sector_neutral",
+    "return_3m_sector_neutral",
+    "max_drawdown_126d_sector_neutral",
+    "average_dollar_volume_20d_sector_neutral",
+)
+
 PROCESSED_TECHNICAL_COLUMNS = (
     *PROCESSED_IDENTIFIER_COLUMNS,
     *TECHNICAL_FEATURE_COLUMNS,

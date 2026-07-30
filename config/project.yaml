@@ -88,3 +88,28 @@ technical_feature_processing:
   minimum_cross_section_size: 10
   minimum_sector_size: 2
   sector_neutralization: true
+
+technical_factor_research:
+  target_column: target_21d_excess
+  absolute_return_column: target_21d
+  number_of_quantiles: 5
+  minimum_cross_section_size: 20
+  annualization_periods: 12
+  research_start_date: "2014-01-31"
+  research_end_date: "2019-12-31"
+
+technical_factor_diagnostics:
+  correlation_threshold: 0.90
+  minimum_pair_observations: 20
+  minimum_sector_cross_section_size: 3
+  minimum_sector_months: 12
+  top_signals_in_figures: 10
+
+  subperiods:
+    - name: "2014-2016"
+      start_date: "2014-01-31"
+      end_date: "2016-12-31"
+
+    - name: "2017-2019"
+      start_date: "2017-01-01"
+      end_date: "2019-12-31"

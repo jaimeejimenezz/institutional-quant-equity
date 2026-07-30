@@ -17,6 +17,7 @@ dependencies = [
     "pandas>=2.2",
     "pyarrow>=15.0",
     "yfinance==1.5.2",
+    "matplotlib>=3.11.1",
     "PyYAML>=6.0"
 ]
 
