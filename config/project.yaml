@@ -175,3 +175,23 @@ portfolio_construction:
 
   optimization_tolerance: 1.0e-10
   optimization_max_iterations: 2000
+
+mvp_backtest:
+  initial_capital: 1000000.0
+  transaction_cost_bps: 10.0
+
+  final_holding_sessions: 21
+
+  date_column: "date"
+  ticker_column: "ticker"
+  open_column: "open"
+  close_column: "close"
+  adjusted_close_column: "adjusted_close"
+
+  minimum_trade_notional: 0.01
+  cash_tolerance: 0.05
+  weight_tolerance: 1.0e-8
+  share_tolerance: 1.0e-12
+
+  bisection_tolerance: 1.0e-8
+  bisection_max_iterations: 200
