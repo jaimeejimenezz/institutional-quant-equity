@@ -158,3 +158,20 @@ linear_model_evaluation:
   top_fraction: 0.20
   annualization_periods: 12
   minimum_cross_section_size: 30
+
+portfolio_construction:
+  primary_model_name: "elastic_net"
+  challenger_model_name: "ridge"
+  momentum_model_name: "momentum_3m"
+
+  top_n: 20
+  score_weighted_candidate_count: 25
+
+  max_weight: 0.05
+  max_sector_weight: 0.25
+
+  minimum_cross_section_size: 30
+  weight_tolerance: 1.0e-8
+
+  optimization_tolerance: 1.0e-10
+  optimization_max_iterations: 2000

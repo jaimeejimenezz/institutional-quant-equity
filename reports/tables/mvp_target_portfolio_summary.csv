@@ -1,0 +1,6 @@
+strategy_name,months,mean_holdings,minimum_holdings,maximum_holdings,mean_maximum_weight,maximum_observed_weight,mean_maximum_sector_weight,maximum_observed_sector_weight,mean_top_ten_concentration,constraint_pass_ratio
+elastic_net_score_weighted,77,25.0,25,25,0.04999999999999998,0.05,0.16799090000317377,0.22959262053812202,0.49959904545870965,1.0
+elastic_net_top20_equal_weight,77,20.0,20,20,0.04999999999999998,0.05,0.17337662337662335,0.25,0.5,1.0
+momentum_3m_top20_equal_weight,77,20.0,20,20,0.04999999999999998,0.05,0.1805194805194805,0.25,0.5,1.0
+ridge_top20_equal_weight,77,20.0,20,20,0.04999999999999998,0.05,0.17727272727272722,0.25,0.5,1.0
+universe_equal_weight,77,50.0,50,50,0.02,0.02,0.16,0.16,0.19999999999999993,1.0
