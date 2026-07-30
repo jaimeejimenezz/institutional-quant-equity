@@ -123,3 +123,29 @@ linear_modeling:
   validation_months: 12
   minimum_training_months: 60
   minimum_cross_section_size: 30
+
+linear_models:
+  target_column: "target_21d_excess"
+  top_label_column: "label_top_quintile"
+  momentum_signal: "return_3m_sector_neutral"
+
+  ridge_alphas:
+    - 0.01
+    - 0.10
+    - 1.00
+    - 10.00
+    - 100.00
+
+  elastic_net_alphas:
+    - 0.0001
+    - 0.001
+    - 0.010
+    - 0.100
+
+  elastic_net_l1_ratios:
+    - 0.10
+    - 0.50
+    - 0.90
+
+  max_iterations: 50000
+  tolerance: 0.000001
