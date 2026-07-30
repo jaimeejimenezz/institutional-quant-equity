@@ -113,3 +113,13 @@ technical_factor_diagnostics:
     - name: "2017-2019"
       start_date: "2017-01-01"
       end_date: "2019-12-31"
+
+linear_modeling:
+  target_column: "target_21d_excess"
+  top_label_column: "label_top_quintile"
+
+  out_of_sample_start_date: "2020-01-01"
+
+  validation_months: 12
+  minimum_training_months: 60
+  minimum_cross_section_size: 30
