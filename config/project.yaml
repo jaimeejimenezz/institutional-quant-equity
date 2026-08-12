@@ -195,3 +195,19 @@ mvp_backtest:
 
   bisection_tolerance: 1.0e-8
   bisection_max_iterations: 200
+
+mvp_performance_evaluation:
+  benchmark_name: "spy_buy_and_hold"
+  benchmark_ticker: "SPY"
+
+  annualization_periods: 252
+  risk_free_rate: 0.0
+
+  cost_scenarios_bps:
+    - 0.0
+    - 5.0
+    - 10.0
+    - 20.0
+    - 50.0
+
+  numerical_tolerance: 1.0e-12
