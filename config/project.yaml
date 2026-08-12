@@ -211,3 +211,17 @@ mvp_performance_evaluation:
     - 50.0
 
   numerical_tolerance: 1.0e-12
+
+sec_fundamentals:
+  provider: "sec_edgar"
+  companyfacts_base_url: "https://data.sec.gov/api/xbrl/companyfacts"
+
+  user_agent_env_var: "SEC_USER_AGENT"
+
+  timeout_seconds: 30.0
+  request_interval_seconds: 0.20
+
+  maximum_retries: 4
+  retry_backoff_seconds: 1.0
+
+  overwrite_raw: false
