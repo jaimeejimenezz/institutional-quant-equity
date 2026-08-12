@@ -57,6 +57,13 @@ from quant_equity.data.sec_companyfacts import (
     resolve_sec_user_agent,
     validate_companyfacts_payload,
 )
+from quant_equity.data.sec_companyfacts_normalization import (
+    NORMALIZED_COLUMNS,
+    SECNormalizationError,
+    build_companyfacts_quality_summary,
+    normalize_companyfacts_payload,
+    validate_normalized_companyfacts,
+)
 
 __all__ = [
     "CORE_DATA_COLUMNS",
@@ -106,4 +113,9 @@ __all__ = [
     "normalize_cik",
     "resolve_sec_user_agent",
     "validate_companyfacts_payload",
+    "NORMALIZED_COLUMNS",
+    "SECNormalizationError",
+    "build_companyfacts_quality_summary",
+    "normalize_companyfacts_payload",
+    "validate_normalized_companyfacts",
 ]
