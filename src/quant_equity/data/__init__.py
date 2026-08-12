@@ -64,6 +64,16 @@ from quant_equity.data.sec_companyfacts_normalization import (
     normalize_companyfacts_payload,
     validate_normalized_companyfacts,
 )
+from quant_equity.data.sec_fundamental_canonicalization import (
+    CanonicalMetricDefinition,
+    ConceptMapping,
+    DurationBands,
+    SECCanonicalizationError,
+    build_canonical_coverage,
+    canonicalize_sec_facts,
+    classify_duration,
+    load_concept_mapping,
+)
 
 __all__ = [
     "CORE_DATA_COLUMNS",
@@ -118,4 +128,12 @@ __all__ = [
     "build_companyfacts_quality_summary",
     "normalize_companyfacts_payload",
     "validate_normalized_companyfacts",
+    "CanonicalMetricDefinition",
+    "ConceptMapping",
+    "DurationBands",
+    "SECCanonicalizationError",
+    "build_canonical_coverage",
+    "canonicalize_sec_facts",
+    "classify_duration",
+    "load_concept_mapping",
 ]

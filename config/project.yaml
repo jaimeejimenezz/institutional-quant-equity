@@ -225,3 +225,18 @@ sec_fundamentals:
   retry_backoff_seconds: 1.0
 
   overwrite_raw: false
+
+  canonicalization:
+    mapping_path: "data/reference/xbrl_concept_mapping.yaml"
+
+    quarter_min_days: 70
+    quarter_max_days: 110
+
+    half_year_min_days: 150
+    half_year_max_days: 210
+
+    nine_month_min_days: 230
+    nine_month_max_days: 300
+
+    annual_min_days: 330
+    annual_max_days: 400

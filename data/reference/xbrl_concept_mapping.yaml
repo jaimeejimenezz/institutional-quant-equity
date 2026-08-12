@@ -1,0 +1,153 @@
+version: "1.0"
+
+accepted_taxonomies:
+  - "us-gaap"
+
+accepted_forms:
+  - "10-K"
+  - "10-K/A"
+  - "10-Q"
+  - "10-Q/A"
+
+metrics:
+
+  revenue:
+    statement_type: "duration"
+    units:
+      - "USD"
+    concepts:
+      - RevenueFromContractWithCustomerExcludingAssessedTax
+      - Revenues
+      - SalesRevenueNet
+      - SalesRevenueGoodsNet
+      - SalesRevenueServicesNet
+
+  gross_profit:
+    statement_type: "duration"
+    units:
+      - "USD"
+    concepts:
+      - GrossProfit
+
+  operating_income:
+    statement_type: "duration"
+    units:
+      - "USD"
+    concepts:
+      - OperatingIncomeLoss
+
+  net_income:
+    statement_type: "duration"
+    units:
+      - "USD"
+    concepts:
+      - NetIncomeLoss
+      - ProfitLoss
+
+  assets:
+    statement_type: "instant"
+    units:
+      - "USD"
+    concepts:
+      - Assets
+
+  current_assets:
+    statement_type: "instant"
+    units:
+      - "USD"
+    concepts:
+      - AssetsCurrent
+
+  equity:
+    statement_type: "instant"
+    units:
+      - "USD"
+    concepts:
+      - StockholdersEquity
+      - StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest
+
+  cash:
+    statement_type: "instant"
+    units:
+      - "USD"
+    concepts:
+      - CashAndCashEquivalentsAtCarryingValue
+      - CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents
+
+  current_liabilities:
+    statement_type: "instant"
+    units:
+      - "USD"
+    concepts:
+      - LiabilitiesCurrent
+
+  debt_current:
+    statement_type: "instant"
+    units:
+      - "USD"
+    concepts:
+      - LongTermDebtCurrent
+      - LongTermDebtAndFinanceLeaseObligationsCurrent
+      - ShortTermBorrowings
+
+  debt_noncurrent:
+    statement_type: "instant"
+    units:
+      - "USD"
+    concepts:
+      - LongTermDebtNoncurrent
+      - LongTermDebtAndFinanceLeaseObligationsNoncurrent
+
+  operating_cash_flow:
+    statement_type: "duration"
+    units:
+      - "USD"
+    concepts:
+      - NetCashProvidedByUsedInOperatingActivities
+
+  capex:
+    statement_type: "duration"
+    units:
+      - "USD"
+    concepts:
+      - PaymentsToAcquirePropertyPlantAndEquipment
+      - PaymentsForAdditionsToPropertyPlantAndEquipment
+      - PaymentsToAcquireProductiveAssets
+
+  inventory:
+    statement_type: "instant"
+    units:
+      - "USD"
+    concepts:
+      - InventoryNet
+
+  receivables:
+    statement_type: "instant"
+    units:
+      - "USD"
+    concepts:
+      - AccountsReceivableNetCurrent
+      - AccountsNotesAndLoansReceivableNetCurrent
+
+  shares_outstanding:
+    statement_type: "instant"
+    units:
+      - "shares"
+    concepts:
+      - CommonStockSharesOutstanding
+
+  diluted_shares:
+    statement_type: "duration"
+    units:
+      - "shares"
+    concepts:
+      - WeightedAverageNumberOfDilutedSharesOutstanding
+
+  interest_expense:
+    statement_type: "duration"
+    units:
+      - "USD"
+    concepts:
+      - InterestExpenseNonOperating
+      - InterestExpense
+      - InterestAndDebtExpense
