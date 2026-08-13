@@ -240,8 +240,24 @@ sec_fundamentals:
 
     annual_min_days: 330
     annual_max_days: 400
-    
+
   point_in_time:
     availability_lag_days: 1
     require_statement_type_match: true
     exclude_other_duration: true
+  
+  quarterly_reconstruction:
+    additive_metrics:
+      - revenue
+      - gross_profit
+      - operating_income
+      - net_income
+      - operating_cash_flow
+      - capex
+      - interest_expense
+
+    quarter_gap_min_days: 60
+    quarter_gap_max_days: 120
+
+    ttm_span_min_days: 240
+    ttm_span_max_days: 330

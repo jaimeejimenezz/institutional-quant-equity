@@ -101,20 +101,6 @@ def _candidate_is_better(
     previous: Mapping[str, Any],
 ) -> bool:
     """Decide which filing best represents one reporting period."""
-    new_priority = int(
-        new["concept_priority"]
-    )
-
-    previous_priority = int(
-        previous["concept_priority"]
-    )
-
-    if new_priority != previous_priority:
-        return (
-            new_priority
-            < previous_priority
-        )
-
     new_filed = pd.Timestamp(
         new["filed_date"]
     )
@@ -139,6 +125,20 @@ def _candidate_is_better(
 
     if new_amendment != previous_amendment:
         return new_amendment
+
+    new_priority = int(
+        new["concept_priority"]
+    )
+
+    previous_priority = int(
+        previous["concept_priority"]
+    )
+
+    if new_priority != previous_priority:
+        return (
+            new_priority
+            < previous_priority
+        )
 
     new_accession = str(
         new.get(

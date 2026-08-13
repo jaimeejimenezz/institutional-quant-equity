@@ -82,6 +82,12 @@ from quant_equity.data.sec_point_in_time import (
     get_fundamentals_as_of,
     prepare_point_in_time_events,
 )
+from quant_equity.data.sec_quarterly_reconstruction import (
+    SECQuarterlyReconstructionConfig,
+    SECQuarterlyReconstructionError,
+    build_quarterly_fundamental_events,
+    build_ttm_point_in_time_snapshots,
+)
 
 __all__ = [
     "CORE_DATA_COLUMNS",
@@ -150,4 +156,8 @@ __all__ = [
     "build_point_in_time_snapshots",
     "get_fundamentals_as_of",
     "prepare_point_in_time_events",
+    "SECQuarterlyReconstructionConfig",
+    "SECQuarterlyReconstructionError",
+    "build_quarterly_fundamental_events",
+    "build_ttm_point_in_time_snapshots",
 ]

@@ -330,3 +330,58 @@ def test_snapshot_never_uses_future_information() -> None:
     )
 
     assert (snapshots["available_date"] <= snapshots["as_of_date"]).all()
+
+
+def test_later_filing_can_replace_higher_priority_old_fact() -> None:
+    """Later information should supersede an older concept mapping."""
+    data = pd.DataFrame(
+        [
+            make_fact(
+                metric="revenue",
+                duration_class="quarter",
+                value=100.0,
+                start_date="2023-01-01",
+                end_date="2023-03-31",
+                filed_date="2023-05-01",
+                concept="PreferredRevenue",
+                priority=1,
+                accession="A",
+            ),
+            make_fact(
+                metric="revenue",
+                duration_class="quarter",
+                value=105.0,
+                start_date="2023-01-01",
+                end_date="2023-03-31",
+                filed_date="2023-05-15",
+                concept="AlternativeRevenue",
+                priority=2,
+                accession="B",
+            ),
+        ]
+    )
+
+    snapshots = build_point_in_time_snapshots(
+        data,
+        [
+            "2023-05-10",
+            "2023-05-16",
+        ],
+        config=make_config(),
+    )
+
+    before = get_fundamentals_as_of(
+        snapshots,
+        ticker="AAPL",
+        as_of_date="2023-05-10",
+    )
+
+    after = get_fundamentals_as_of(
+        snapshots,
+        ticker="AAPL",
+        as_of_date="2023-05-16",
+    )
+
+    assert before["value"].iloc[0] == 100.0
+
+    assert after["value"].iloc[0] == 105.0
