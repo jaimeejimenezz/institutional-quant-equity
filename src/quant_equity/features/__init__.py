@@ -1,5 +1,10 @@
 """Feature-engineering utilities."""
 
+from quant_equity.features.fundamental_base import (
+    FundamentalBaseConfig,
+    FundamentalBaseError,
+    build_monthly_fundamental_base,
+)
 from quant_equity.features.technical import (
     REQUIRED_MARKET_COLUMNS,
     TECHNICAL_FEATURE_COLUMNS,
@@ -72,4 +77,7 @@ __all__ = [
     "write_processed_technical_features",
     "write_raw_technical_features",
     "write_technical_features_report",
+    "FundamentalBaseConfig",
+    "FundamentalBaseError",
+    "build_monthly_fundamental_base",
 ]
