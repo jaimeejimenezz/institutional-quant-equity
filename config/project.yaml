@@ -240,3 +240,8 @@ sec_fundamentals:
 
     annual_min_days: 330
     annual_max_days: 400
+    
+  point_in_time:
+    availability_lag_days: 1
+    require_statement_type_match: true
+    exclude_other_duration: true

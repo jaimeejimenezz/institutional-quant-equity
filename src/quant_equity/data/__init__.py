@@ -74,6 +74,14 @@ from quant_equity.data.sec_fundamental_canonicalization import (
     classify_duration,
     load_concept_mapping,
 )
+from quant_equity.data.sec_point_in_time import (
+    SECPointInTimeConfig,
+    SECPointInTimeError,
+    build_point_in_time_coverage,
+    build_point_in_time_snapshots,
+    get_fundamentals_as_of,
+    prepare_point_in_time_events,
+)
 
 __all__ = [
     "CORE_DATA_COLUMNS",
@@ -136,4 +144,10 @@ __all__ = [
     "canonicalize_sec_facts",
     "classify_duration",
     "load_concept_mapping",
+    "SECPointInTimeConfig",
+    "SECPointInTimeError",
+    "build_point_in_time_coverage",
+    "build_point_in_time_snapshots",
+    "get_fundamentals_as_of",
+    "prepare_point_in_time_events",
 ]
