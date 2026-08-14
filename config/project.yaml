@@ -261,3 +261,9 @@ sec_fundamentals:
 
     ttm_span_min_days: 240
     ttm_span_max_days: 330
+
+fundamental_factors:
+  diluted_share_metric: diluted_shares
+  diluted_share_duration_class: quarter
+  capex_positive_outflow: true
+  min_abs_denominator: 1.0e-12

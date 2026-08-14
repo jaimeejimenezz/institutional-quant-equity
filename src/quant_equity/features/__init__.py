@@ -5,6 +5,12 @@ from quant_equity.features.fundamental_base import (
     FundamentalBaseError,
     build_monthly_fundamental_base,
 )
+from quant_equity.features.fundamental_factors import (
+    RAW_FACTOR_COLUMNS,
+    FundamentalFactorConfig,
+    FundamentalFactorError,
+    build_raw_fundamental_factors,
+)
 from quant_equity.features.technical import (
     REQUIRED_MARKET_COLUMNS,
     TECHNICAL_FEATURE_COLUMNS,
@@ -80,4 +86,8 @@ __all__ = [
     "FundamentalBaseConfig",
     "FundamentalBaseError",
     "build_monthly_fundamental_base",
+    "RAW_FACTOR_COLUMNS",
+    "FundamentalFactorConfig",
+    "FundamentalFactorError",
+    "build_raw_fundamental_factors",
 ]
