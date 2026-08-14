@@ -274,3 +274,11 @@ fundamental_factors:
     min_lag_days: 330
     max_lag_days: 400
     min_abs_denominator: 1.0e-12
+
+  transform:
+    winsor_lower_quantile: 0.025
+    winsor_upper_quantile: 0.975
+    min_cross_section_observations: 10
+    min_sector_observations: 3
+    zscore_ddof: 0
+    zero_std_value: 0.0

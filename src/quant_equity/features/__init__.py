@@ -17,6 +17,12 @@ from quant_equity.features.fundamental_growth import (
     FundamentalGrowthError,
     build_fundamental_growth_factors,
 )
+from quant_equity.features.fundamental_transforms import (
+    FUNDAMENTAL_FACTOR_COLUMNS,
+    FundamentalTransformConfig,
+    FundamentalTransformError,
+    build_processed_fundamental_features,
+)
 from quant_equity.features.technical import (
     REQUIRED_MARKET_COLUMNS,
     TECHNICAL_FEATURE_COLUMNS,
@@ -100,4 +106,8 @@ __all__ = [
     "FundamentalGrowthConfig",
     "FundamentalGrowthError",
     "build_fundamental_growth_factors",
+    "FUNDAMENTAL_FACTOR_COLUMNS",
+    "FundamentalTransformConfig",
+    "FundamentalTransformError",
+    "build_processed_fundamental_features",
 ]
