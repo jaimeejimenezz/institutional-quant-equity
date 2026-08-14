@@ -267,3 +267,10 @@ fundamental_factors:
   diluted_share_duration_class: quarter
   capex_positive_outflow: true
   min_abs_denominator: 1.0e-12
+
+  growth:
+    lag_periods: 12
+    acceleration_lag_periods: 12
+    min_lag_days: 330
+    max_lag_days: 400
+    min_abs_denominator: 1.0e-12
