@@ -1,0 +1,18 @@
+check,status,violations,description
+canonical_column_order,PASS,0,The stored panel must follow the canonical MODELING_PANEL_COLUMNS schema exactly.
+unique_column_names,PASS,0,The modeling panel must not contain duplicated column names.
+candidate_feature_count,PASS,0,The current master-panel contract expects exactly 91 candidate predictors.
+numeric_predictors,PASS,0,Every non-missing candidate predictor must be numeric.
+finite_predictors,PASS,0,Candidate predictors may be NaN but must never contain infinity.
+no_fully_missing_predictors,PASS,0,Every candidate predictor must have at least one historical observation.
+complete_cross_sections,PASS,0,Every rebalance date must contain the same configured security cross-section.
+modeling_sample_exists,PASS,0,The dataset must contain historical observations with completed targets.
+inference_only_tail,PASS,0,Observations without future targets must appear only after the completed modeling history.
+target_excess_reconstruction,PASS,0,target_21d_excess must equal target_21d minus the same-date cross-sectional median.
+target_excess_centering,PASS,0,The cross-sectional median of target_21d_excess must be zero on every modeling date.
+binary_top_quintile_label,PASS,0,label_top_quintile must be binary for every modeling observation.
+top_quintile_ordering,PASS,0,Top-quintile observations must not have lower future returns than non-top-quintile observations on the same date.
+unique_dictionary_columns,PASS,0,Every panel column must have exactly one dictionary entry.
+dictionary_panel_alignment,PASS,0,The data dictionary must exactly cover the stored modeling-panel schema.
+dictionary_model_input_contract,PASS,0,Dictionary model_input=True columns must exactly equal MODEL_FEATURE_COLUMNS.
+prior_leakage_audit,PASS,0,Every Step 11B leakage and point-in-time check must pass.
