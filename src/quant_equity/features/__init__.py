@@ -1,5 +1,16 @@
 """Feature-engineering utilities."""
 
+from quant_equity.features.fundamental_audit import (
+    FUNDAMENTAL_FEATURE_METADATA,
+    FundamentalAuditConfig,
+    FundamentalAuditError,
+    build_cross_sectional_correlations,
+    build_fundamental_feature_summary,
+    build_zscore_audit,
+    select_high_correlations,
+    update_feature_dictionary,
+    validate_feature_metadata,
+)
 from quant_equity.features.fundamental_base import (
     FundamentalBaseConfig,
     FundamentalBaseError,
@@ -110,4 +121,13 @@ __all__ = [
     "FundamentalTransformConfig",
     "FundamentalTransformError",
     "build_processed_fundamental_features",
+    "FUNDAMENTAL_FEATURE_METADATA",
+    "FundamentalAuditConfig",
+    "FundamentalAuditError",
+    "build_cross_sectional_correlations",
+    "build_fundamental_feature_summary",
+    "build_zscore_audit",
+    "select_high_correlations",
+    "update_feature_dictionary",
+    "validate_feature_metadata",
 ]

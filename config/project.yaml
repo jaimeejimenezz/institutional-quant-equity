@@ -282,3 +282,9 @@ fundamental_factors:
     min_sector_observations: 3
     zscore_ddof: 0
     zero_std_value: 0.0
+
+  audit:
+    high_correlation_threshold: 0.80
+    min_pair_dates: 24
+    min_pair_observations: 10
+    zscore_mean_tolerance: 1.0e-10
