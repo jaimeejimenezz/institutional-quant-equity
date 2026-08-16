@@ -1,0 +1,9 @@
+check,status,violations,description
+expected_summary_rows,PASS,0,Rolling-window summary must contain one row per method and window length.
+five_methods_per_length,PASS,0,Every rolling-window length must contain all five methods.
+five_methods_per_window,PASS,0,Every individual rolling window must contain all five methods.
+finite_window_metrics,PASS,0,Key rolling-window metrics must remain finite.
+positive_window_lengths,PASS,0,Every method and window length must contain at least one rolling window.
+valid_window_ratios,PASS,0,Rolling-window success ratios must lie between zero and one.
+ordered_windows,PASS,0,Every rolling window must start before it ends.
+positive_trading_days,PASS,0,Every rolling window must contain positive trading-day counts.
