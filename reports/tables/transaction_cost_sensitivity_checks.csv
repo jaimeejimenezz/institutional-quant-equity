@@ -1,0 +1,8 @@
+check,status,violations,description
+expected_rows,PASS,0,Sensitivity analysis must contain one row per method and cost scenario.
+five_methods_per_scenario,PASS,0,Every cost scenario must contain all five portfolio methods.
+finite_metrics,PASS,0,Key transaction-cost sensitivity metrics must remain finite.
+positive_final_values,PASS,0,All strategies must retain positive final portfolio value.
+nonnegative_transaction_costs,PASS,0,Transaction costs cannot be negative.
+linear_cost_reduces_value,PASS,0,Final value must not increase when the linear cost assumption rises.
+realized_cost_non_decreasing,PASS,0,Realized effective cost must not decline as the linear cost assumption rises.
