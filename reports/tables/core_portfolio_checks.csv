@@ -1,0 +1,8 @@
+check,status,violations,description
+unique_weight_keys,PASS,0,Target weights must have unique method-date-ticker keys.
+fully_invested,PASS,0,Every portfolio must sum to one.
+long_only,PASS,0,Portfolio weights must be long-only.
+security_weight_limit,PASS,0,No security may exceed its maximum weight.
+sector_weight_limit,PASS,0,No sector may exceed its maximum portfolio weight.
+minimum_positions,PASS,0,Every portfolio must contain enough active positions.
+finite_weights,PASS,0,All target weights must be finite.

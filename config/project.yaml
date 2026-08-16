@@ -313,3 +313,14 @@ portfolio_construction:
   max_sector_weight: 0.25
   minimum_positions: 20
   weight_tolerance: 0.00000001
+
+portfolio_optimizer:
+  candidate_count: 25
+  annualized_alpha_scale: 0.10
+  risk_aversion: 0.50
+  turnover_penalty: 0.01
+  max_security_weight: 0.05
+  max_sector_weight: 0.25
+  weight_tolerance: 0.00000001
+  solver_tolerance: 0.000000001
+  constraint_margin: 0.000001
