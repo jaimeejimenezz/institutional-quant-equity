@@ -1,0 +1,6 @@
+strategy_name,probability_rank_1_by_annualized_return,probability_rank_1_by_sharpe
+score_weighted,0.7954,0.5172
+median_mad_de,0.1755,0.3606
+top_n_equal_weight,0.0142,0.0717
+alpha_risk_turnover,0.0113,0.0497
+cvar,0.0036,0.0008

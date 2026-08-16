@@ -1,0 +1,9 @@
+check,status,violations,description
+minimum_months,PASS,0,Bootstrap analysis should contain at least 60 aligned months.
+expected_methods,PASS,0,Bootstrap summary must contain all five portfolio methods.
+expected_replications,PASS,0,Every method must use the configured number of bootstrap replications.
+finite_summary_metrics,PASS,0,Bootstrap summary metrics must be finite.
+confidence_interval_order,PASS,0,Bootstrap confidence-interval lower bounds must not exceed upper bounds.
+valid_summary_probabilities,PASS,0,Bootstrap strategy probabilities must lie between zero and one.
+valid_pairwise_probabilities,PASS,0,Pairwise bootstrap probabilities must lie between zero and one.
+rank_probabilities_sum_to_one,PASS,0,Bootstrap rank-one probabilities must sum to one for each metric.
