@@ -1,0 +1,9 @@
+check,status,violations,description
+five_methods_per_year,PASS,0,Every observed calendar year must contain all five methods.
+five_methods_per_regime,PASS,0,Every temporal regime must contain all five methods.
+five_methods_per_condition,PASS,0,Every monthly market condition must contain all five methods.
+finite_yearly_metrics,PASS,0,Key yearly performance metrics must be finite.
+finite_regime_metrics,PASS,0,Key regime performance metrics must be finite.
+positive_year_month_counts,PASS,0,Conditional analyses must contain at least one month.
+valid_positive_month_ratios,PASS,0,Positive-month ratios must lie between zero and one.
+valid_outperformance_ratios,PASS,0,SPY outperformance ratios must lie between zero and one.
