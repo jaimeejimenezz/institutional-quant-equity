@@ -1,0 +1,12 @@
+check,status,violations,description
+expected_model_feature_count,PASS,0,The frozen modeling contract should contain 91 predictors.
+unique_model_feature_names,PASS,0,Frozen model feature names must be unique.
+all_model_features_in_panel,PASS,0,Every frozen model feature must exist in modeling_panel.parquet.
+technical_contract_complete,PASS,0,Every canonical technical model feature must map to exactly one frozen modeling-panel predictor.
+expected_technical_feature_count,PASS,0,The technical family must match the canonical technical-model contract.
+fundamental_family_nonempty,PASS,0,The no-fundamentals ablation requires fundamental predictors.
+momentum_family_nonempty,PASS,0,The no-momentum ablation requires explicit momentum predictors.
+families_partition_model_features,PASS,0,Technical and fundamental families must partition the model predictors.
+no_fundamentals_retains_only_technical,PASS,0,The no-fundamentals contract must retain only technical predictors.
+no_momentum_removes_all_momentum,PASS,0,The no-momentum contract must remove every frozen momentum predictor.
+ablations_retain_predictors,PASS,0,Each ablation must retain a usable predictor set.
