@@ -156,6 +156,7 @@ def test_optimizer_is_fully_invested() -> None:
     weights, _ = build_alpha_risk_turnover_portfolios(
         make_signal(),
         make_covariance(),
+        make_risk_estimates(),
         config=make_config(),
     )
 
@@ -170,6 +171,7 @@ def test_optimizer_respects_security_and_sector_caps() -> None:
     weights, _ = build_alpha_risk_turnover_portfolios(
         make_signal(),
         make_covariance(),
+        make_risk_estimates(),
         config=make_config(),
     )
 
@@ -185,6 +187,7 @@ def test_optimizer_prefers_stronger_alpha_when_risk_is_equal() -> None:
     weights, _ = build_alpha_risk_turnover_portfolios(
         make_signal(),
         make_covariance(),
+        make_risk_estimates(),
         config=make_config(
             risk_aversion=0.10,
             turnover_penalty=0.0,
@@ -208,6 +211,7 @@ def test_turnover_penalty_reduces_portfolio_changes() -> None:
     _, no_penalty = build_alpha_risk_turnover_portfolios(
         signal,
         covariance,
+        make_risk_estimates(two_dates=True),
         config=make_config(
             risk_aversion=0.10,
             turnover_penalty=0.0,
@@ -217,6 +221,7 @@ def test_turnover_penalty_reduces_portfolio_changes() -> None:
     _, with_penalty = build_alpha_risk_turnover_portfolios(
         signal,
         covariance,
+        make_risk_estimates(two_dates=True),
         config=make_config(
             risk_aversion=0.10,
             turnover_penalty=0.10,
@@ -255,12 +260,14 @@ def test_future_columns_do_not_change_weights() -> None:
     first_weights, _ = build_alpha_risk_turnover_portfolios(
         first_signal,
         make_covariance(),
+        make_risk_estimates(),
         config=make_config(),
     )
 
     second_weights, _ = build_alpha_risk_turnover_portfolios(
         second_signal,
         make_covariance(),
+        make_risk_estimates(),
         config=make_config(),
     )
 
@@ -282,6 +289,7 @@ def test_incomplete_covariance_is_rejected() -> None:
         build_alpha_risk_turnover_portfolios(
             make_signal(),
             covariance,
+            make_risk_estimates(),
             config=make_config(),
         )
 
@@ -301,6 +309,7 @@ def test_optimizer_accepts_project_covariance_schema() -> None:
     weights, _ = build_alpha_risk_turnover_portfolios(
         make_signal(),
         covariance,
+        make_risk_estimates(),
         config=make_config(),
     )
 
@@ -308,3 +317,134 @@ def test_optimizer_accepts_project_covariance_schema() -> None:
         1.0,
         abs=1e-7,
     )
+
+
+def make_risk_estimates(
+    *,
+    two_dates: bool = False,
+) -> pd.DataFrame:
+    """Create beta and liquidity estimates for optimizer tests."""
+    tickers = [
+        "AAA",
+        "BBB",
+        "CCC",
+        "DDD",
+        "EEE",
+    ]
+
+    beta_values = [
+        1.10,
+        1.05,
+        1.00,
+        0.95,
+        0.90,
+    ]
+
+    dates = (
+        [
+            FIRST_DATE,
+            SECOND_DATE,
+        ]
+        if two_dates
+        else [
+            FIRST_DATE,
+        ]
+    )
+
+    rows = []
+
+    for date in dates:
+        for (
+            ticker,
+            beta,
+        ) in zip(
+            tickers,
+            beta_values,
+            strict=True,
+        ):
+            rows.append(
+                {
+                    "as_of_date": date,
+                    "ticker": ticker,
+                    "beta_vs_spy": beta,
+                    "average_dollar_volume": 100_000_000.0,
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
+def test_portfolio_beta_respects_configured_range() -> None:
+    """Optimized portfolio beta must remain inside its hard range."""
+    weights, diagnostics = build_alpha_risk_turnover_portfolios(
+        make_signal(),
+        make_covariance(),
+        make_risk_estimates(),
+        config=make_config(),
+    )
+
+    del weights
+
+    beta = diagnostics.loc[
+        0,
+        "portfolio_beta_vs_spy",
+    ]
+
+    assert beta >= (make_config().minimum_portfolio_beta - 1e-8)
+
+    assert beta <= (make_config().maximum_portfolio_beta + 1e-8)
+
+
+def test_liquidity_constraint_caps_position_size() -> None:
+    """A low-ADV candidate must respect its liquidity capacity."""
+    risk = make_risk_estimates()
+
+    risk.loc[
+        risk["ticker"].eq("AAA"),
+        "average_dollar_volume",
+    ] = 100.0
+
+    config = PortfolioOptimizerConfig(
+        candidate_count=4,
+        annualized_alpha_scale=0.10,
+        risk_aversion=0.10,
+        turnover_penalty=0.0,
+        max_security_weight=0.40,
+        max_sector_weight=0.60,
+        weight_tolerance=1e-8,
+        solver_tolerance=1e-9,
+        constraint_margin=1e-6,
+        minimum_portfolio_beta=0.50,
+        maximum_portfolio_beta=1.50,
+        reference_portfolio_value=100.0,
+        max_position_adv_fraction=0.10,
+    )
+
+    weights, _ = build_alpha_risk_turnover_portfolios(
+        make_signal(),
+        make_covariance(),
+        risk,
+        config=config,
+    )
+
+    aaa_weight = weights.loc[
+        weights["ticker"].eq("AAA"),
+        "weight",
+    ].iloc[0]
+
+    assert aaa_weight <= (0.10 + 1e-8)
+
+
+def test_missing_candidate_risk_is_rejected() -> None:
+    """Optimization must reject incomplete candidate risk coverage."""
+    risk = make_risk_estimates()
+
+    risk = risk.loc[~risk["ticker"].eq("AAA")].copy()
+
+    with pytest.raises(PortfolioOptimizationError):
+        build_alpha_risk_turnover_portfolios(
+            make_signal(),
+            make_covariance(),
+            risk,
+            config=make_config(),
+        )

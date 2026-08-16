@@ -6,3 +6,6 @@ security_weight_limit,PASS,0,No security may exceed its maximum weight.
 sector_weight_limit,PASS,0,No sector may exceed its maximum portfolio weight.
 minimum_positions,PASS,0,Every portfolio must contain enough active positions.
 finite_weights,PASS,0,All target weights must be finite.
+portfolio_beta_lower_limit,PASS,0,Optimized portfolio beta must remain above its lower bound.
+portfolio_beta_upper_limit,PASS,0,Optimized portfolio beta must remain below its upper bound.
+position_liquidity_limit,PASS,0,No target position may exceed the configured share of Average Dollar Volume.

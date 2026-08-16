@@ -28,6 +28,10 @@ class PortfolioOptimizerConfig:
     weight_tolerance: float = 1e-8
     solver_tolerance: float = 1e-9
     constraint_margin: float = 1e-6
+    minimum_portfolio_beta: float = 0.85
+    maximum_portfolio_beta: float = 1.15
+    reference_portfolio_value: float = 1_000_000.0
+    max_position_adv_fraction: float = 0.01
 
     @classmethod
     def from_mapping(
@@ -90,6 +94,30 @@ class PortfolioOptimizerConfig:
                     1e-6,
                 )
             ),
+            minimum_portfolio_beta=float(
+                values.get(
+                    "minimum_portfolio_beta",
+                    0.85,
+                )
+            ),
+            maximum_portfolio_beta=float(
+                values.get(
+                    "maximum_portfolio_beta",
+                    1.15,
+                )
+            ),
+            reference_portfolio_value=float(
+                values.get(
+                    "reference_portfolio_value",
+                    1_000_000.0,
+                )
+            ),
+            max_position_adv_fraction=float(
+                values.get(
+                    "max_position_adv_fraction",
+                    0.01,
+                )
+            ),
         )
 
         config.validate()
@@ -139,6 +167,17 @@ class PortfolioOptimizerConfig:
             raise PortfolioOptimizationError(
                 "constraint_margin must be smaller than max_sector_weight."
             )
+
+        if self.minimum_portfolio_beta > self.maximum_portfolio_beta:
+            raise PortfolioOptimizationError(
+                "minimum_portfolio_beta cannot exceed maximum_portfolio_beta."
+            )
+
+        if self.reference_portfolio_value <= 0.0:
+            raise PortfolioOptimizationError("reference_portfolio_value must be positive.")
+
+        if not (0.0 < self.max_position_adv_fraction <= 1.0):
+            raise PortfolioOptimizationError("max_position_adv_fraction must be in (0, 1].")
 
 
 def _require_columns(
@@ -352,6 +391,139 @@ def _resolve_covariance_schema(
     )
 
 
+def _resolve_risk_schema(
+    risk_estimates: pd.DataFrame,
+) -> tuple[str, str]:
+    """Resolve beta and liquidity columns from stored risk estimates."""
+    beta_columns = (
+        "beta_vs_spy",
+        "rolling_beta_vs_spy",
+        "market_beta",
+        "beta",
+    )
+
+    adv_columns = (
+        "average_dollar_volume",
+        "average_dollar_volume_20d",
+        "adv_20d",
+        "dollar_volume_20d",
+        "adv",
+    )
+
+    beta_column = next(
+        (column for column in beta_columns if column in risk_estimates.columns),
+        None,
+    )
+
+    if beta_column is None:
+        raise PortfolioOptimizationError(
+            "Unable to identify beta column in risk estimates. "
+            f"Available columns: {list(risk_estimates.columns)}"
+        )
+
+    adv_column = next(
+        (column for column in adv_columns if column in risk_estimates.columns),
+        None,
+    )
+
+    if adv_column is None:
+        raise PortfolioOptimizationError(
+            "Unable to identify Average Dollar Volume column "
+            "in risk estimates. "
+            f"Available columns: {list(risk_estimates.columns)}"
+        )
+
+    return (
+        beta_column,
+        adv_column,
+    )
+
+
+def _prepare_candidate_risk(
+    risk_estimates: pd.DataFrame,
+    *,
+    as_of_date: pd.Timestamp,
+    tickers: list[str],
+) -> pd.DataFrame:
+    """Load beta and liquidity estimates for portfolio candidates."""
+    _require_columns(
+        risk_estimates,
+        (
+            "as_of_date",
+            "ticker",
+        ),
+        dataset_name="risk estimates",
+    )
+
+    (
+        beta_column,
+        adv_column,
+    ) = _resolve_risk_schema(risk_estimates)
+
+    risk = risk_estimates.loc[
+        :,
+        [
+            "as_of_date",
+            "ticker",
+            beta_column,
+            adv_column,
+        ],
+    ].copy()
+
+    risk["as_of_date"] = pd.to_datetime(risk["as_of_date"]).dt.normalize()
+
+    risk["ticker"] = risk["ticker"].astype(str)
+
+    risk = risk.loc[risk["as_of_date"].eq(as_of_date) & risk["ticker"].isin(tickers)].copy()
+
+    if risk.duplicated("ticker").any():
+        raise PortfolioOptimizationError(
+            f"Risk estimates contain duplicate tickers for {as_of_date.date()}."
+        )
+
+    risk = risk.set_index("ticker").reindex(tickers)
+
+    if (
+        risk[
+            [
+                beta_column,
+                adv_column,
+            ]
+        ]
+        .isna()
+        .any()
+        .any()
+    ):
+        raise PortfolioOptimizationError(f"Risk estimates are incomplete for {as_of_date.date()}.")
+
+    risk[beta_column] = pd.to_numeric(
+        risk[beta_column],
+        errors="coerce",
+    )
+
+    risk[adv_column] = pd.to_numeric(
+        risk[adv_column],
+        errors="coerce",
+    )
+
+    if (~np.isfinite(risk[beta_column].to_numpy(dtype=float))).any():
+        raise PortfolioOptimizationError("Candidate beta estimates must be finite.")
+
+    if (~np.isfinite(risk[adv_column].to_numpy(dtype=float))).any():
+        raise PortfolioOptimizationError("Candidate liquidity estimates must be finite.")
+
+    if (risk[adv_column] <= 0.0).any():
+        raise PortfolioOptimizationError("Average Dollar Volume must be positive.")
+
+    return pd.DataFrame(
+        {
+            "beta_vs_spy": (risk[beta_column].to_numpy(dtype=float)),
+            "average_dollar_volume": (risk[adv_column].to_numpy(dtype=float)),
+        },
+        index=tickers,
+    )
+
+
 def _build_covariance_matrix(
     covariance: pd.DataFrame,
     *,
@@ -440,6 +612,7 @@ def _calculate_realized_turnover(
 def _solve_portfolio(
     candidates: pd.DataFrame,
     covariance_matrix: np.ndarray,
+    candidate_risk: pd.DataFrame,
     *,
     previous_weights: pd.Series | None,
     config: PortfolioOptimizerConfig,
@@ -454,17 +627,43 @@ def _solve_portfolio(
         candidates["percentile_score"].to_numpy(dtype=float) - 0.5
     ) * config.annualized_alpha_scale
 
-    weights = cp.Variable(len(candidates))
-
     effective_security_limit = config.max_security_weight - config.constraint_margin
 
     effective_sector_limit = config.max_sector_weight - config.constraint_margin
+
+    beta = candidate_risk["beta_vs_spy"].to_numpy(dtype=float)
+
+    average_dollar_volume = candidate_risk["average_dollar_volume"].to_numpy(dtype=float)
+
+    liquidity_weight_limits = (
+        config.max_position_adv_fraction * average_dollar_volume / config.reference_portfolio_value
+    )
+
+    maximum_feasible_weights = np.minimum(
+        effective_security_limit,
+        liquidity_weight_limits,
+    )
+
+    if maximum_feasible_weights.sum() < 1.0 - config.weight_tolerance:
+        raise PortfolioOptimizationError(
+            "Security and liquidity constraints cannot support a fully invested portfolio."
+        )
+
+    weights = cp.Variable(len(candidates))
 
     constraints = [
         weights >= 0.0,
         weights <= effective_security_limit,
         cp.sum(weights) == 1.0,
     ]
+
+    constraints.extend(
+        [
+            beta @ weights >= config.minimum_portfolio_beta,
+            beta @ weights <= config.maximum_portfolio_beta,
+            weights <= liquidity_weight_limits,
+        ]
+    )
 
     sectors = candidates["sector"].astype(str).to_numpy()
 
@@ -532,6 +731,14 @@ def _solve_portfolio(
         None,
     )
 
+    portfolio_beta = float(beta @ solved_weights)
+
+    position_adv_fractions = (
+        config.reference_portfolio_value * solved_weights / average_dollar_volume
+    )
+
+    maximum_position_adv_fraction = float(position_adv_fractions.max())
+
     total_weight = float(solved_weights.sum())
 
     if total_weight <= 0.0:
@@ -589,6 +796,8 @@ def _solve_portfolio(
             )
         ),
         "one_way_turnover": (one_way_turnover),
+        "portfolio_beta_vs_spy": (portfolio_beta),
+        "maximum_position_adv_fraction": (maximum_position_adv_fraction),
     }
 
     return (
@@ -600,6 +809,7 @@ def _solve_portfolio(
 def build_alpha_risk_turnover_portfolios(
     final_signal: pd.DataFrame,
     covariance: pd.DataFrame,
+    risk_estimates: pd.DataFrame,
     *,
     config: PortfolioOptimizerConfig | None = None,
 ) -> tuple[
@@ -642,12 +852,19 @@ def build_alpha_risk_turnover_portfolios(
             tickers=tickers,
         )
 
+        candidate_risk = _prepare_candidate_risk(
+            risk_estimates,
+            as_of_date=normalized_date,
+            tickers=tickers,
+        )
+
         (
             solved_weights,
             optimizer_diagnostics,
         ) = _solve_portfolio(
             candidates,
             covariance_matrix,
+            candidate_risk,
             previous_weights=previous_weights,
             config=config,
         )
@@ -676,6 +893,18 @@ def build_alpha_risk_turnover_portfolios(
 
         candidates["method"] = "alpha_risk_turnover"
 
+        candidates["beta_vs_spy"] = candidate_risk["beta_vs_spy"].to_numpy(dtype=float)
+
+        candidates["average_dollar_volume"] = candidate_risk["average_dollar_volume"].to_numpy(
+            dtype=float
+        )
+
+        candidates["position_adv_fraction"] = (
+            config.reference_portfolio_value
+            * solved_weights
+            / candidates["average_dollar_volume"].to_numpy(dtype=float)
+        )
+
         portfolio_blocks.append(
             candidates.loc[
                 :,
@@ -690,6 +919,9 @@ def build_alpha_risk_turnover_portfolios(
                     "annualized_alpha_proxy",
                     "previous_weight",
                     "weight",
+                    "beta_vs_spy",
+                    "average_dollar_volume",
+                    "position_adv_fraction",
                 ],
             ]
         )
@@ -731,4 +963,66 @@ def build_alpha_risk_turnover_portfolios(
     return (
         weights,
         diagnostics,
+    )
+
+
+def validate_optimizer_diagnostics(
+    diagnostics: pd.DataFrame,
+    *,
+    config: PortfolioOptimizerConfig,
+) -> pd.DataFrame:
+    """Audit beta and liquidity constraints of optimized portfolios."""
+    _require_columns(
+        diagnostics,
+        (
+            "portfolio_beta_vs_spy",
+            "maximum_position_adv_fraction",
+        ),
+        dataset_name="optimizer diagnostics",
+    )
+
+    checks = [
+        (
+            "portfolio_beta_lower_limit",
+            int(
+                diagnostics["portfolio_beta_vs_spy"]
+                .lt(config.minimum_portfolio_beta - config.weight_tolerance)
+                .sum()
+            ),
+            ("Optimized portfolio beta must remain above its lower bound."),
+        ),
+        (
+            "portfolio_beta_upper_limit",
+            int(
+                diagnostics["portfolio_beta_vs_spy"]
+                .gt(config.maximum_portfolio_beta + config.weight_tolerance)
+                .sum()
+            ),
+            ("Optimized portfolio beta must remain below its upper bound."),
+        ),
+        (
+            "position_liquidity_limit",
+            int(
+                diagnostics["maximum_position_adv_fraction"]
+                .gt(config.max_position_adv_fraction + config.weight_tolerance)
+                .sum()
+            ),
+            ("No target position may exceed the configured share of Average Dollar Volume."),
+        ),
+    ]
+
+    return pd.DataFrame(
+        [
+            {
+                "check": name,
+                "status": ("PASS" if violations == 0 else "FAIL"),
+                "violations": violations,
+                "description": description,
+            }
+            for (
+                name,
+                violations,
+                description,
+            ) in checks
+        ]
     )

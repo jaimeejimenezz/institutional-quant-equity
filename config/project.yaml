@@ -324,3 +324,9 @@ portfolio_optimizer:
   weight_tolerance: 0.00000001
   solver_tolerance: 0.000000001
   constraint_margin: 0.000001
+
+  minimum_portfolio_beta: 0.85
+  maximum_portfolio_beta: 1.15
+
+  reference_portfolio_value: 1000000
+  max_position_adv_fraction: 0.01

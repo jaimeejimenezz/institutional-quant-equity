@@ -17,6 +17,7 @@ from quant_equity.portfolio.optimizer import (
     PortfolioOptimizationError,
     PortfolioOptimizerConfig,
     build_alpha_risk_turnover_portfolios,
+    validate_optimizer_diagnostics,
 )
 
 __all__ = [
@@ -35,4 +36,5 @@ __all__ = [
     "PortfolioOptimizationError",
     "PortfolioOptimizerConfig",
     "build_alpha_risk_turnover_portfolios",
+    "validate_optimizer_diagnostics",
 ]

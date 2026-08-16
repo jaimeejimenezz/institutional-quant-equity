@@ -20,6 +20,7 @@ from quant_equity.portfolio import (
     build_alpha_risk_turnover_portfolios,
     compute_portfolio_diagnostics,
     validate_baseline_portfolios,
+    validate_optimizer_diagnostics,
 )
 from quant_equity.risk import (
     PortfolioRiskConfig,
@@ -251,6 +252,7 @@ def main() -> None:
     ) = build_alpha_risk_turnover_portfolios(
         final_signal,
         covariance,
+        risk_estimates,
         config=optimizer_config,
     )
 
@@ -281,6 +283,19 @@ def main() -> None:
     checks = validate_baseline_portfolios(
         combined_weights,
         config=construction_config,
+    )
+
+    optimizer_checks = validate_optimizer_diagnostics(
+        optimizer_diagnostics,
+        config=optimizer_config,
+    )
+
+    checks = pd.concat(
+        [
+            checks,
+            optimizer_checks,
+        ],
+        ignore_index=True,
     )
 
     failed_checks = int(checks["status"].eq("FAIL").sum())
