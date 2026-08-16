@@ -22,44 +22,23 @@ from quant_equity.validation import (
     build_walk_forward_folds,
 )
 
+PANEL_PATH = PROJECT_ROOT / "data" / "processed" / "modeling_panel.parquet"
 
-PANEL_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "processed"
-    / "modeling_panel.parquet"
-)
+OUTPUT_PATH = PROJECT_ROOT / "data" / "processed" / "walk_forward_preprocessing.parquet"
 
-OUTPUT_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "processed"
-    / "walk_forward_preprocessing.parquet"
-)
-
-TABLE_PATH = (
-    REPORTS_DIR
-    / "tables"
-    / "walk_forward_preprocessing_audit.csv"
-)
+TABLE_PATH = REPORTS_DIR / "tables" / "walk_forward_preprocessing_audit.csv"
 
 
 def main() -> None:
     """Execute Step 12B."""
     configure_logging()
 
-    logger = logging.getLogger(
-        "quant_equity"
-    )
+    logger = logging.getLogger("quant_equity")
 
     if not PANEL_PATH.exists():
-        raise FileNotFoundError(
-            f"Modeling panel not found: {PANEL_PATH}"
-        )
+        raise FileNotFoundError(f"Modeling panel not found: {PANEL_PATH}")
 
-    panel = pd.read_parquet(
-        PANEL_PATH
-    )
+    panel = pd.read_parquet(PANEL_PATH)
 
     config = WalkForwardConfig(
         min_train_dates=60,
@@ -122,94 +101,43 @@ def main() -> None:
         .sum()
     )
 
-    logger.info(
-        "Walk-forward preprocessing audit completed."
-    )
+    logger.info("Walk-forward preprocessing audit completed.")
 
     print()
-    print(
-        "Institutional Quant Equity Research Platform"
-    )
-    print(
-        "Fold-local preprocessing audit - Step 12B"
-    )
-    print(
-        "------------------------------------------------"
-    )
+    print("Institutional Quant Equity Research Platform")
+    print("Fold-local preprocessing audit - Step 12B")
+    print("------------------------------------------------")
 
-    print(
-        f"folds: {len(audit)}"
-    )
+    print(f"folds: {len(audit)}")
 
-    print(
-        "candidate_features: "
-        f"{len(MODEL_FEATURE_COLUMNS)}"
-    )
+    print(f"candidate_features: {len(MODEL_FEATURE_COLUMNS)}")
 
-    print(
-        "minimum_active_features: "
-        f"{audit['active_features'].min()}"
-    )
+    print(f"minimum_active_features: {audit['active_features'].min()}")
 
-    print(
-        "maximum_active_features: "
-        f"{audit['active_features'].max()}"
-    )
+    print(f"maximum_active_features: {audit['active_features'].max()}")
 
-    print(
-        "folds_with_unavailable_features: "
-        f"{audit['unavailable_features'].gt(0).sum()}"
-    )
+    print(f"folds_with_unavailable_features: {audit['unavailable_features'].gt(0).sum()}")
 
-    print(
-        "maximum_unavailable_features: "
-        f"{audit['unavailable_features'].max()}"
-    )
+    print(f"maximum_unavailable_features: {audit['unavailable_features'].max()}")
 
-    print(
-        "maximum_constant_continuous_features: "
-        f"{audit['constant_continuous_features'].max()}"
-    )
+    print(f"maximum_constant_continuous_features: {audit['constant_continuous_features'].max()}")
 
-    print(
-        "total_train_missing_before: "
-        f"{audit['train_missing_before'].sum()}"
-    )
+    print(f"total_train_missing_before: {audit['train_missing_before'].sum()}")
 
-    print(
-        "total_validation_missing_before: "
-        f"{audit['validation_missing_before'].sum()}"
-    )
+    print(f"total_validation_missing_before: {audit['validation_missing_before'].sum()}")
 
-    print(
-        "total_test_missing_before: "
-        f"{audit['test_missing_before'].sum()}"
-    )
+    print(f"total_test_missing_before: {audit['test_missing_before'].sum()}")
 
-    print(
-        "transformed_missing_values: "
-        f"{transformed_missing}"
-    )
+    print(f"transformed_missing_values: {transformed_missing}")
 
-    print(
-        "transformed_non_finite_values: "
-        f"{transformed_non_finite}"
-    )
+    print(f"transformed_non_finite_values: {transformed_non_finite}")
 
-    print(
-        "max_abs_train_scaled_mean: "
-        f"{audit['max_abs_train_scaled_mean'].max():.3e}"
-    )
+    print(f"max_abs_train_scaled_mean: {audit['max_abs_train_scaled_mean'].max():.3e}")
 
-    print(
-        "max_abs_train_scaled_std_error: "
-        f"{audit['max_abs_train_scaled_std_error'].max():.3e}"
-    )
+    print(f"max_abs_train_scaled_std_error: {audit['max_abs_train_scaled_std_error'].max():.3e}")
 
     print()
-    print(
-        "First folds:"
-    )
+    print("First folds:")
 
     preview = [
         "fold_id",
@@ -223,39 +151,21 @@ def main() -> None:
         "test_missing_after",
     ]
 
-    print(
-        audit[
-            preview
-        ]
-        .head()
-        .to_string(
-            index=False
-        )
-    )
+    print(audit[preview].head().to_string(index=False))
 
     print()
-    print(
-        f"Parquet: {OUTPUT_PATH}"
-    )
+    print(f"Parquet: {OUTPUT_PATH}")
 
-    print(
-        f"CSV: {TABLE_PATH}"
-    )
+    print(f"CSV: {TABLE_PATH}")
 
     if transformed_missing != 0:
-        raise RuntimeError(
-            "Missing values remain after preprocessing."
-        )
+        raise RuntimeError("Missing values remain after preprocessing.")
 
     if transformed_non_finite != 0:
-        raise RuntimeError(
-            "Non-finite values remain after preprocessing."
-        )
+        raise RuntimeError("Non-finite values remain after preprocessing.")
 
     print()
-    print(
-        "Fold-local preprocessing: OK"
-    )
+    print("Fold-local preprocessing: OK")
 
 
 if __name__ == "__main__":

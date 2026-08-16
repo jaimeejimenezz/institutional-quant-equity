@@ -1,0 +1,20 @@
+check,status,violations,description
+folds_exist,PASS,0,At least one definitive walk-forward fold must exist.
+sequential_fold_ids,PASS,0,Fold IDs must be sequential and deterministic.
+unique_test_dates,PASS,0,Every out-of-sample month must be tested exactly once.
+strictly_increasing_test_dates,PASS,0,Out-of-sample test dates must advance strictly through time.
+complete_oos_date_coverage,PASS,0,Every completed modeling month from the first OOS date onward must be tested.
+disjoint_fold_partitions,PASS,0,"Train, validation and test dates must be mutually exclusive inside each fold."
+chronological_partition_order,PASS,0,Every fold must satisfy train < validation < test.
+minimum_training_history,PASS,0,Every fold must satisfy the configured minimum training history.
+validation_window_size,PASS,0,Every fold must contain the configured number of validation dates.
+complete_test_cross_sections,PASS,0,Every OOS month must contain the complete security universe.
+historical_test_targets_exist,PASS,0,Historical OOS test rows must have completed targets for evaluation.
+fitting_label_maturity,PASS,0,Train and validation targets must be fully known by the test date.
+expanding_training_history,PASS,0,Expanding mode must preserve previously eligible training history.
+stored_fold_metadata_alignment,PASS,0,Persisted Step 12A fold metadata must match the regenerated walk-forward contract.
+preprocessing_fold_alignment,PASS,0,Step 12B preprocessing results must align one-to-one with the OOS folds.
+preprocessing_feature_contract,PASS,0,Every fold must account for all candidate features using training-only availability.
+no_missing_after_preprocessing,PASS,0,No active predictor may remain missing after fold-local preprocessing.
+finite_preprocessed_features,PASS,0,Preprocessed features must not contain positive or negative infinity.
+training_scaling_contract,PASS,0,Non-constant continuous training features must be centered and scaled using training-only statistics.

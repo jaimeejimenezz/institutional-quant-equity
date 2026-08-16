@@ -32,6 +32,12 @@ from quant_equity.validation.walk_forward import (
     split_panel_by_fold,
     walk_forward_folds_to_frame,
 )
+from quant_equity.validation.walk_forward_readiness import (
+    WalkForwardReadinessError,
+    WalkForwardReadinessResult,
+    audit_walk_forward_readiness,
+    write_walk_forward_readiness_report,
+)
 
 __all__ = [
     "LinearModelingConfig",
@@ -56,4 +62,8 @@ __all__ = [
     "FoldPreprocessingError",
     "audit_fold_preprocessing",
     "fit_fold_preprocessor",
+    "WalkForwardReadinessError",
+    "WalkForwardReadinessResult",
+    "audit_walk_forward_readiness",
+    "write_walk_forward_readiness_report",
 ]
