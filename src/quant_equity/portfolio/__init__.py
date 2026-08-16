@@ -19,6 +19,12 @@ from quant_equity.portfolio.cvar import (
     build_cvar_portfolios,
     validate_cvar_diagnostics,
 )
+from quant_equity.portfolio.median_mad import (
+    MedianMadConfig,
+    MedianMadPortfolioError,
+    build_median_mad_portfolios,
+    validate_median_mad_diagnostics,
+)
 from quant_equity.portfolio.optimizer import (
     PortfolioOptimizationError,
     PortfolioOptimizerConfig,
@@ -47,4 +53,8 @@ __all__ = [
     "CvarRiskConfig",
     "build_cvar_portfolios",
     "validate_cvar_diagnostics",
+    "MedianMadConfig",
+    "MedianMadPortfolioError",
+    "build_median_mad_portfolios",
+    "validate_median_mad_diagnostics",
 ]

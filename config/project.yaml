@@ -337,3 +337,23 @@ portfolio_cvar:
   scenario_lookback: 252
   minimum_scenarios: 126
   cvar_penalty: 0.05
+
+portfolio_median_mad:
+  lookback_days: 252
+  minimum_observations: 126
+
+  mad_limit: 0.008
+  mad_violation_penalty: 10.0
+
+  turnover_penalty: 0.001
+
+  seed: 42
+
+  max_iterations: 80
+  population_size: 8
+  tolerance: 1.0e-7
+
+  mutation_min: 0.5
+  mutation_max: 1.0
+  recombination: 0.7
+  polish: false
