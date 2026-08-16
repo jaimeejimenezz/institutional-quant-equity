@@ -1,0 +1,10 @@
+check,status,violations,description
+expected_scenarios,PASS,0,The analysis must contain the full ensemble and all three one-component ablations.
+expected_oos_dates,PASS,0,Every signal scenario must contain all 77 frozen OOS dates.
+complete_cross_sections,PASS,0,Every signal scenario must retain the full 50-stock cross-section.
+fully_invested,PASS,0,Every ablation portfolio must sum to one.
+long_only,PASS,0,Ablation portfolios must remain long-only.
+security_cap,PASS,0,Ablation portfolios must respect the 5% security cap.
+sector_cap,PASS,0,Ablation portfolios must respect the 25% sector cap.
+finite_performance,PASS,0,Key ablation performance metrics must remain finite.
+positive_final_values,PASS,0,Every ablation backtest must retain positive final value.
