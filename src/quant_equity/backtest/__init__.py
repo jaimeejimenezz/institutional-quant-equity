@@ -1,6 +1,7 @@
 from quant_equity.backtest.execution import (
     ExecutionCostConfig,
     ExecutionCostError,
+    estimate_execution_cost_arrays,
     estimate_trade_execution_cost,
     estimate_trade_execution_costs,
 )
@@ -36,4 +37,5 @@ __all__ = [
     "ExecutionCostError",
     "estimate_trade_execution_cost",
     "estimate_trade_execution_costs",
+    "estimate_execution_cost_arrays",
 ]

@@ -97,6 +97,88 @@ class ExecutionCostConfig:
             raise ExecutionCostError("annualization_factor must be positive.")
 
 
+def estimate_execution_cost_arrays(
+    absolute_trade_notional: np.ndarray,
+    annualized_volatility: np.ndarray,
+    average_dollar_volume: np.ndarray,
+    *,
+    config: ExecutionCostConfig,
+) -> dict[str, np.ndarray]:
+    """Estimate execution costs for aligned arrays of trades."""
+    config.validate()
+
+    notional = np.asarray(
+        absolute_trade_notional,
+        dtype=float,
+    ).reshape(-1)
+
+    volatility = np.asarray(
+        annualized_volatility,
+        dtype=float,
+    ).reshape(-1)
+
+    dollar_volume = np.asarray(
+        average_dollar_volume,
+        dtype=float,
+    ).reshape(-1)
+
+    if not (notional.shape == volatility.shape == dollar_volume.shape):
+        raise ExecutionCostError("Execution-cost arrays must have identical shapes.")
+
+    if not (
+        np.isfinite(notional).all()
+        and np.isfinite(volatility).all()
+        and np.isfinite(dollar_volume).all()
+    ):
+        raise ExecutionCostError("Execution-cost arrays must contain finite values.")
+
+    if (notional < 0.0).any():
+        raise ExecutionCostError("absolute_trade_notional cannot contain negative values.")
+
+    if (volatility < 0.0).any():
+        raise ExecutionCostError("annualized_volatility cannot contain negative values.")
+
+    if (dollar_volume <= 0.0).any():
+        raise ExecutionCostError("average_dollar_volume must contain positive values.")
+
+    commission_cost = notional * config.commission_bps / 10_000.0
+
+    spread_cost = notional * config.half_spread_bps / 10_000.0
+
+    slippage_cost = notional * config.slippage_bps / 10_000.0
+
+    daily_volatility = volatility / np.sqrt(config.annualization_factor)
+
+    order_adv_fraction = notional / dollar_volume
+
+    market_impact_rate = (
+        config.market_impact_coefficient * daily_volatility * np.sqrt(order_adv_fraction)
+    )
+
+    market_impact_cost = notional * market_impact_rate
+
+    total_execution_cost = commission_cost + spread_cost + slippage_cost + market_impact_cost
+
+    effective_cost_bps = np.zeros_like(notional)
+
+    positive_trade = notional > 0.0
+
+    effective_cost_bps[positive_trade] = (
+        total_execution_cost[positive_trade] / notional[positive_trade] * 10_000.0
+    )
+
+    return {
+        "commission_cost": commission_cost,
+        "spread_cost": spread_cost,
+        "slippage_cost": slippage_cost,
+        "market_impact_cost": market_impact_cost,
+        "total_execution_cost": total_execution_cost,
+        "market_impact_bps": (market_impact_rate * 10_000.0),
+        "effective_cost_bps": (effective_cost_bps),
+        "order_adv_fraction": (order_adv_fraction),
+    }
+
+
 def estimate_trade_execution_cost(
     absolute_trade_notional: float,
     annualized_volatility: float,

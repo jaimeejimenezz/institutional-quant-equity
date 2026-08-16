@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import (
+    Callable,
+    Mapping,
+    Sequence,
+)
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import pandas as pd
+
+from quant_equity.backtest.execution import (
+    ExecutionCostConfig,
+    estimate_execution_cost_arrays,
+)
 
 
 class MVPBacktestError(ValueError):
@@ -526,6 +535,120 @@ def build_execution_schedule(
     return schedule
 
 
+def _prepare_execution_risk_lookup(
+    risk_estimates: pd.DataFrame,
+    *,
+    signal_dates: Sequence[pd.Timestamp],
+    tickers: Sequence[str],
+) -> dict[
+    pd.Timestamp,
+    tuple[
+        np.ndarray,
+        np.ndarray,
+    ],
+]:
+    """Align point-in-time volatility and liquidity with execution tickers."""
+    _require_columns(
+        risk_estimates,
+        (
+            "as_of_date",
+            "ticker",
+            "annualized_volatility",
+            "average_dollar_volume",
+        ),
+        dataset_name="Execution risk estimates",
+    )
+
+    data = risk_estimates.loc[
+        :,
+        [
+            "as_of_date",
+            "ticker",
+            "annualized_volatility",
+            "average_dollar_volume",
+        ],
+    ].copy()
+
+    data["as_of_date"] = pd.to_datetime(
+        data["as_of_date"],
+        errors="coerce",
+    ).dt.normalize()
+
+    data["ticker"] = data["ticker"].astype("string").str.strip()
+
+    for column in (
+        "annualized_volatility",
+        "average_dollar_volume",
+    ):
+        data[column] = pd.to_numeric(
+            data[column],
+            errors="coerce",
+        )
+
+    if data["as_of_date"].isna().any() or data["ticker"].isna().any():
+        raise MVPBacktestError("Execution risk estimates contain invalid keys.")
+
+    if data.duplicated(
+        [
+            "as_of_date",
+            "ticker",
+        ]
+    ).any():
+        raise MVPBacktestError("Execution risk estimates contain duplicated date-ticker rows.")
+
+    ordered_tickers = [str(ticker) for ticker in tickers]
+
+    lookup: dict[
+        pd.Timestamp,
+        tuple[
+            np.ndarray,
+            np.ndarray,
+        ],
+    ] = {}
+
+    for signal_date in pd.DatetimeIndex(pd.to_datetime(list(signal_dates))).normalize():
+        date_data = (
+            data.loc[data["as_of_date"].eq(signal_date)]
+            .set_index("ticker")
+            .reindex(ordered_tickers)
+        )
+
+        missing = (
+            date_data[
+                [
+                    "annualized_volatility",
+                    "average_dollar_volume",
+                ]
+            ]
+            .isna()
+            .any(axis=1)
+        )
+
+        if missing.any():
+            missing_ticker = str(date_data.index[missing][0])
+
+            raise MVPBacktestError(
+                f"Missing execution risk estimate for {missing_ticker} on {signal_date.date()}."
+            )
+
+        volatility = date_data["annualized_volatility"].to_numpy(dtype=float)
+
+        dollar_volume = date_data["average_dollar_volume"].to_numpy(dtype=float)
+
+        if not np.isfinite(volatility).all() or (volatility < 0.0).any():
+            raise MVPBacktestError("Execution volatility estimates are invalid.")
+
+        if not np.isfinite(dollar_volume).all() or (dollar_volume <= 0.0).any():
+            raise MVPBacktestError("Execution liquidity estimates are invalid.")
+
+        lookup[pd.Timestamp(signal_date)] = (
+            volatility,
+            dollar_volume,
+        )
+
+    return lookup
+
+
 def _solve_post_cost_investable_value(
     *,
     pre_trade_nav: float,
@@ -534,24 +657,55 @@ def _solve_post_cost_investable_value(
     transaction_cost_rate: float,
     tolerance: float,
     maximum_iterations: int,
+    execution_cost_function: (
+        Callable[
+            [
+                np.ndarray,
+            ],
+            np.ndarray,
+        ]
+        | None
+    ) = None,
 ) -> float:
     """Solve the self-financing portfolio value after costs."""
-    if transaction_cost_rate == 0.0:
+    if execution_cost_function is None and transaction_cost_rate == 0.0:
         return pre_trade_nav
+
+    def calculate_cost(
+        absolute_trade_notional: np.ndarray,
+    ) -> float:
+        if execution_cost_function is None:
+            return float(transaction_cost_rate * absolute_trade_notional.sum())
+
+        cost_vector = np.asarray(
+            execution_cost_function(absolute_trade_notional),
+            dtype=float,
+        ).reshape(-1)
+
+        if cost_vector.shape != absolute_trade_notional.shape:
+            raise MVPBacktestError("Execution cost function returned an invalid shape.")
+
+        if not np.isfinite(cost_vector).all() or (cost_vector < 0.0).any():
+            raise MVPBacktestError("Execution cost function returned invalid costs.")
+
+        return float(cost_vector.sum())
 
     def equation(
         investable_value: float,
     ) -> float:
         target_values = investable_value * target_weights
 
-        traded_notional = float(np.abs(target_values - current_values).sum())
+        absolute_trade_notional = np.abs(target_values - current_values)
 
-        return investable_value + transaction_cost_rate * traded_notional - pre_trade_nav
+        transaction_cost = calculate_cost(absolute_trade_notional)
+
+        return float(investable_value + transaction_cost - pre_trade_nav)
 
     lower = 0.0
     upper = pre_trade_nav
 
     lower_value = equation(lower)
+
     upper_value = equation(upper)
 
     if lower_value > tolerance:
@@ -594,6 +748,17 @@ def _run_single_strategy(
     adjusted_close_prices: pd.DataFrame,
     sector_by_ticker: Mapping[str, str],
     config: MVPBacktestConfig,
+    execution_risk_lookup: (
+        Mapping[
+            pd.Timestamp,
+            tuple[
+                np.ndarray,
+                np.ndarray,
+            ],
+        ]
+        | None
+    ) = None,
+    execution_cost_config: (ExecutionCostConfig | None) = None,
 ) -> tuple[
     pd.DataFrame,
     pd.DataFrame,
@@ -713,13 +878,45 @@ def _run_single_strategy(
                     f"rebalance: {strategy_name}, {date.date()}."
                 )
 
+            execution_cost_function = None
+
+            execution_volatility = None
+            execution_dollar_volume = None
+
+            if execution_cost_config is not None:
+                if execution_risk_lookup is None or signal_date not in execution_risk_lookup:
+                    raise MVPBacktestError(
+                        "Advanced execution costs require point-in-time risk estimates."
+                    )
+
+                (
+                    execution_volatility,
+                    execution_dollar_volume,
+                ) = execution_risk_lookup[signal_date]
+
+                def execution_cost_function(
+                    absolute_notional: np.ndarray,
+                    volatility: np.ndarray = execution_volatility,
+                    dollar_volume: np.ndarray = execution_dollar_volume,
+                    cost_config: ExecutionCostConfig = execution_cost_config,
+                ) -> np.ndarray:
+                    return estimate_execution_cost_arrays(
+                        absolute_notional,
+                        volatility,
+                        dollar_volume,
+                        config=cost_config,
+                    )["total_execution_cost"]
+
             post_cost_investable_value = _solve_post_cost_investable_value(
                 pre_trade_nav=pre_trade_nav,
                 current_values=current_values,
                 target_weights=(target_weight_vector),
-                transaction_cost_rate=(config.transaction_cost_rate),
+                transaction_cost_rate=(
+                    0.0 if execution_cost_config is not None else config.transaction_cost_rate
+                ),
                 tolerance=(config.bisection_tolerance),
                 maximum_iterations=(config.bisection_max_iterations),
+                execution_cost_function=(execution_cost_function),
             )
 
             target_values = post_cost_investable_value * target_weight_vector
@@ -743,7 +940,32 @@ def _run_single_strategy(
 
             sell_notional = float(-trade_notional_vector[trade_notional_vector < 0.0].sum())
 
-            transaction_cost = config.transaction_cost_rate * traded_notional
+            if execution_cost_config is None:
+                transaction_cost = config.transaction_cost_rate * traded_notional
+
+                transaction_cost_allocations = np.zeros(
+                    len(tickers),
+                    dtype=float,
+                )
+
+                if traded_notional > 0.0:
+                    transaction_cost_allocations = (
+                        transaction_cost * absolute_trade_notional / traded_notional
+                    )
+            else:
+                if execution_volatility is None or execution_dollar_volume is None:
+                    raise MVPBacktestError("Advanced execution inputs are unavailable.")
+
+                execution_components = estimate_execution_cost_arrays(
+                    absolute_trade_notional,
+                    execution_volatility,
+                    execution_dollar_volume,
+                    config=execution_cost_config,
+                )
+
+                transaction_cost_allocations = execution_components["total_execution_cost"]
+
+                transaction_cost = float(transaction_cost_allocations.sum())
 
             two_way_turnover = traded_notional / pre_trade_nav
 
@@ -770,16 +992,6 @@ def _run_single_strategy(
                 )
 
             pre_trade_weights = current_values / pre_trade_nav
-
-            transaction_cost_allocations = np.zeros(
-                len(tickers),
-                dtype=float,
-            )
-
-            if traded_notional > 0.0:
-                transaction_cost_allocations = (
-                    transaction_cost * absolute_trade_notional / traded_notional
-                )
 
             output_trade_mask = absolute_trade_notional >= config.minimum_trade_notional
 
@@ -1002,8 +1214,19 @@ def run_mvp_backtest(
     market_data: pd.DataFrame,
     *,
     config: MVPBacktestConfig,
+    risk_estimates: (pd.DataFrame | None) = None,
+    execution_cost_config: (ExecutionCostConfig | None) = None,
 ) -> MVPBacktestOutputs:
     """Run the complete daily MVP execution backtest."""
+    if (risk_estimates is None) != (execution_cost_config is None):
+        raise MVPBacktestError(
+            "risk_estimates and execution_cost_config "
+            "must either both be provided or both be omitted."
+        )
+
+    if execution_cost_config is not None:
+        execution_cost_config.validate()
+
     targets = _validate_target_weights(
         target_weights,
         config=config,
@@ -1056,14 +1279,34 @@ def run_mvp_backtest(
     )
 
     daily_frames: list[pd.DataFrame] = []
+
     position_frames: list[pd.DataFrame] = []
+
     trade_frames: list[pd.DataFrame] = []
+
     rebalance_frames: list[pd.DataFrame] = []
 
-    for strategy_name, strategy_targets in targets.groupby(
+    for (
+        strategy_name,
+        strategy_targets,
+    ) in targets.groupby(
         "strategy_name",
         sort=True,
     ):
+        execution_risk_lookup = None
+
+        if execution_cost_config is not None:
+            if risk_estimates is None:
+                raise MVPBacktestError("Advanced execution costs require risk estimates.")
+
+            strategy_tickers = sorted(strategy_targets["ticker"].astype(str).unique())
+
+            execution_risk_lookup = _prepare_execution_risk_lookup(
+                risk_estimates,
+                signal_dates=(schedule["signal_date"]),
+                tickers=(strategy_tickers),
+            )
+
         (
             strategy_daily,
             strategy_positions,
@@ -1078,6 +1321,8 @@ def run_mvp_backtest(
             adjusted_close_prices=(adjusted_close_prices),
             sector_by_ticker=(sector_by_ticker),
             config=config,
+            execution_risk_lookup=(execution_risk_lookup),
+            execution_cost_config=(execution_cost_config),
         )
 
         daily_frames.append(strategy_daily)
@@ -1162,7 +1407,7 @@ def run_mvp_backtest(
     return MVPBacktestOutputs(
         execution_schedule=schedule,
         daily_performance=(daily_performance),
-        daily_positions=daily_positions,
+        daily_positions=(daily_positions),
         trades=trades,
         rebalance_summary=(rebalance_summary),
         execution_summary=(execution_summary),
