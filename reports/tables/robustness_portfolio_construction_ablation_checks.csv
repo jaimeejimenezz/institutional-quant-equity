@@ -1,0 +1,11 @@
+check,status,violations,description
+expected_scenarios,PASS,0,The analysis must contain all four construction-ablation scenarios.
+expected_oos_dates,PASS,0,Every construction scenario must contain all frozen OOS dates.
+fully_invested,PASS,0,Every construction-ablation portfolio must sum to one.
+long_only,PASS,0,Construction-ablation portfolios must remain long-only.
+security_caps,PASS,0,Every scenario must respect the configured security cap.
+controlled_sector_caps,PASS,0,Sector-controlled scenarios must respect the configured sector cap.
+finite_performance,PASS,0,Key construction-ablation metrics must remain finite.
+positive_final_values,PASS,0,Every construction-ablation backtest must retain positive final value.
+one_baseline_per_experiment,PASS,0,Each construction experiment must contain exactly one controlled baseline.
+turnover_penalty_removed,PASS,0,The turnover-penalty ablation must set the penalty exactly to zero.
