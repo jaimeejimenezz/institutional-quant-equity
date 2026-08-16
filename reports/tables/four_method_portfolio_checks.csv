@@ -1,0 +1,17 @@
+scope,check,status,violations,description
+all_methods,unique_weight_keys,PASS,0,Target weights must have unique method-date-ticker keys.
+all_methods,fully_invested,PASS,0,Every portfolio must sum to one.
+all_methods,long_only,PASS,0,Portfolio weights must be long-only.
+all_methods,security_weight_limit,PASS,0,No security may exceed its maximum weight.
+all_methods,sector_weight_limit,PASS,0,No sector may exceed its maximum portfolio weight.
+all_methods,minimum_positions,PASS,0,Every portfolio must contain enough active positions.
+all_methods,finite_weights,PASS,0,All target weights must be finite.
+alpha_risk_turnover,portfolio_beta_lower_limit,PASS,0,Optimized portfolio beta must remain above its lower bound.
+alpha_risk_turnover,portfolio_beta_upper_limit,PASS,0,Optimized portfolio beta must remain below its upper bound.
+alpha_risk_turnover,position_liquidity_limit,PASS,0,No target position may exceed the configured share of Average Dollar Volume.
+cvar,finite_cvar,PASS,0,CVaR estimates must be finite.
+cvar,cvar_not_below_var,PASS,0,CVaR loss must not be below the corresponding VaR loss.
+cvar,minimum_scenarios,PASS,0,Every optimization must use enough historical scenarios.
+cvar,portfolio_beta_lower_limit,PASS,0,CVaR portfolio beta must remain above its lower bound.
+cvar,portfolio_beta_upper_limit,PASS,0,CVaR portfolio beta must remain below its upper bound.
+cvar,position_liquidity_limit,PASS,0,CVaR positions must respect the configured liquidity limit.

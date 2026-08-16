@@ -13,6 +13,12 @@ from quant_equity.portfolio.construction import (
     build_mvp_target_portfolios,
     calculate_portfolio_constraint_checks,
 )
+from quant_equity.portfolio.cvar import (
+    CvarPortfolioError,
+    CvarRiskConfig,
+    build_cvar_portfolios,
+    validate_cvar_diagnostics,
+)
 from quant_equity.portfolio.optimizer import (
     PortfolioOptimizationError,
     PortfolioOptimizerConfig,
@@ -37,4 +43,8 @@ __all__ = [
     "PortfolioOptimizerConfig",
     "build_alpha_risk_turnover_portfolios",
     "validate_optimizer_diagnostics",
+    "CvarPortfolioError",
+    "CvarRiskConfig",
+    "build_cvar_portfolios",
+    "validate_cvar_diagnostics",
 ]
