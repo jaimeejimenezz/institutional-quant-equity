@@ -1,0 +1,10 @@
+check,status,violations,description
+expected_scenarios,PASS,0,All Top-N and security-cap scenarios must be present.
+expected_signal_dates,PASS,0,Every scenario must contain all 77 OOS signal dates.
+fully_invested,PASS,0,Every sensitivity portfolio must sum to one.
+long_only,PASS,0,Sensitivity portfolios must remain long-only.
+security_caps,PASS,0,Observed weights must respect each scenario security cap.
+sector_cap,PASS,0,Every sensitivity portfolio must respect the 25% sector cap.
+finite_performance,PASS,0,Key sensitivity performance metrics must be finite.
+positive_final_value,PASS,0,Every sensitivity backtest must retain positive portfolio value.
+one_baseline_per_experiment,PASS,0,Each parameter experiment must contain exactly one frozen baseline.
