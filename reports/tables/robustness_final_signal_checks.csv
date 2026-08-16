@@ -1,0 +1,9 @@
+check,status,violations,description
+research_rows_match_final_signal,PASS,0,The current frozen OOS final-signal research panel should contain 77 dates × 50 securities.
+expected_oos_months,PASS,0,The current frozen OOS evaluation should contain 77 monthly dates.
+minimum_valid_months,PASS,0,Final-signal statistical robustness requires at least 60 valid months.
+finite_monthly_metrics,PASS,0,"IC, spread and precision must be finite for every evaluated month."
+valid_bootstrap_probabilities,PASS,0,Bootstrap probabilities must lie between zero and one.
+bootstrap_interval_order,PASS,0,Bootstrap confidence-interval lower bounds must not exceed upper bounds.
+yearly_coverage,PASS,0,The current OOS sample should cover calendar years 2020 through 2026.
+sector_coverage,PASS,0,At least five sectors should have enough monthly cross-sectional observations for sector IC diagnostics.
