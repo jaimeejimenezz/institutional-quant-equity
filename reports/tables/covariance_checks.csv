@@ -1,0 +1,12 @@
+check,status,violations,description
+unique_matrix_keys,PASS,0,Every date and ticker pair must appear exactly once.
+signal_date_coverage,PASS,0,Covariance dates must exactly match the final alpha signal dates.
+matrix_dimensions,PASS,0,Every covariance matrix must contain the complete cross-product of assets.
+ticker_coverage,PASS,0,Every matrix must contain exactly the signal universe for that date.
+matrix_symmetry,PASS,0,Every covariance matrix must be symmetric.
+non_negative_variances,PASS,0,Covariance diagonals must contain non-negative variances.
+positive_semidefinite,PASS,0,Shrinkage covariance matrices must be positive semidefinite.
+valid_shrinkage,PASS,0,Ledoit-Wolf shrinkage must remain between zero and one.
+point_in_time_windows,PASS,0,Every covariance estimation window must end on or before as_of_date.
+finite_covariances,PASS,0,All covariance estimates must be finite.
+valid_correlations,PASS,0,All correlations must remain between -1 and 1.
