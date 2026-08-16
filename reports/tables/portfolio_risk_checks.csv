@@ -1,0 +1,11 @@
+check,status,violations,description
+unique_summary_dates,PASS,0,Portfolio summary must contain one row per date.
+unique_contribution_keys,PASS,0,Security risk contributions must have unique date-ticker keys.
+weights_sum_to_one,PASS,0,Security weights must sum to one on every date.
+sector_weights_sum_to_one,PASS,0,Sector weights must sum to one on every date.
+risk_contributions_sum_to_one,PASS,0,Security risk contribution shares must sum to one.
+euler_risk_identity,PASS,0,Component risk contributions must reconstruct portfolio volatility.
+positive_portfolio_volatility,PASS,0,Predicted portfolio volatility must be positive.
+positive_effective_positions,PASS,0,Effective position count must be positive.
+non_negative_liquidation_days,PASS,0,Estimated liquidation days must be non-negative.
+finite_summary_values,PASS,0,Core portfolio risk statistics must be finite.
