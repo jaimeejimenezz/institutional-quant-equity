@@ -1,0 +1,11 @@
+check,status,violations,description
+expected_scenarios,PASS,0,Every defined universe-exclusion scenario must be backtested.
+expected_oos_dates,PASS,0,Every exclusion scenario must contain all 77 frozen OOS dates.
+fully_invested,PASS,0,Every universe-exclusion portfolio must sum to one.
+long_only,PASS,0,Universe-exclusion portfolios must remain long-only.
+security_cap,PASS,0,Universe-exclusion portfolios must respect the 5% security cap.
+sector_cap,PASS,0,Universe-exclusion portfolios must respect the 25% sector cap.
+minimum_eligible_universe,PASS,0,Every scenario must retain at least 25 eligible stocks on every date.
+finite_performance,PASS,0,Key universe-robustness metrics must remain finite.
+positive_final_values,PASS,0,Every universe-exclusion strategy must retain positive final value.
+one_baseline,PASS,0,Exactly one full-universe baseline must be present.
