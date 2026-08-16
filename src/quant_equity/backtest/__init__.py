@@ -1,3 +1,9 @@
+from quant_equity.backtest.execution import (
+    ExecutionCostConfig,
+    ExecutionCostError,
+    estimate_trade_execution_cost,
+    estimate_trade_execution_costs,
+)
 from quant_equity.backtest.mvp_engine import (
     MVPBacktestConfig,
     MVPBacktestError,
@@ -26,4 +32,8 @@ __all__ = [
     "PerformanceEvaluationOutputs",
     "build_buy_and_hold_benchmark",
     "evaluate_performance",
+    "ExecutionCostConfig",
+    "ExecutionCostError",
+    "estimate_trade_execution_cost",
+    "estimate_trade_execution_costs",
 ]

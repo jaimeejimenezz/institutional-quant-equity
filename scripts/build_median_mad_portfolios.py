@@ -31,83 +31,33 @@ from quant_equity.risk import (
     calculate_portfolio_risk,
 )
 
+SIGNAL_PATH = PROCESSED_DATA_DIR / "final_alpha_signal.parquet"
 
-SIGNAL_PATH = (
-    PROCESSED_DATA_DIR
-    / "final_alpha_signal.parquet"
-)
+MARKET_PATH = PROCESSED_DATA_DIR / "market_daily.parquet"
 
-MARKET_PATH = (
-    PROCESSED_DATA_DIR
-    / "market_daily.parquet"
-)
+RISK_ESTIMATES_PATH = PROCESSED_DATA_DIR / "risk_estimates.parquet"
 
-RISK_ESTIMATES_PATH = (
-    PROCESSED_DATA_DIR
-    / "risk_estimates.parquet"
-)
+COVARIANCE_PATH = PROCESSED_DATA_DIR / "covariance_matrices.parquet"
 
-COVARIANCE_PATH = (
-    PROCESSED_DATA_DIR
-    / "covariance_matrices.parquet"
-)
+FOUR_METHOD_WEIGHTS_PATH = PROCESSED_DATA_DIR / "target_weights_four_methods.parquet"
 
-FOUR_METHOD_WEIGHTS_PATH = (
-    PROCESSED_DATA_DIR
-    / "target_weights_four_methods.parquet"
-)
+OPTIMIZER_DIAGNOSTICS_PATH = REPORTS_DIR / "tables" / "portfolio_optimizer_diagnostics.csv"
 
-OPTIMIZER_DIAGNOSTICS_PATH = (
-    REPORTS_DIR
-    / "tables"
-    / "portfolio_optimizer_diagnostics.csv"
-)
+CVAR_DIAGNOSTICS_PATH = REPORTS_DIR / "tables" / "cvar_portfolio_diagnostics.csv"
 
-CVAR_DIAGNOSTICS_PATH = (
-    REPORTS_DIR
-    / "tables"
-    / "cvar_portfolio_diagnostics.csv"
-)
+MEDIAN_MAD_WEIGHTS_PATH = PROCESSED_DATA_DIR / "target_weights_median_mad.parquet"
 
-MEDIAN_MAD_WEIGHTS_PATH = (
-    PROCESSED_DATA_DIR
-    / "target_weights_median_mad.parquet"
-)
+ALL_WEIGHTS_PATH = PROCESSED_DATA_DIR / "target_weights_all_methods.parquet"
 
-ALL_WEIGHTS_PATH = (
-    PROCESSED_DATA_DIR
-    / "target_weights_all_methods.parquet"
-)
+MEDIAN_MAD_DIAGNOSTICS_PATH = REPORTS_DIR / "tables" / "median_mad_portfolio_diagnostics.csv"
 
-MEDIAN_MAD_DIAGNOSTICS_PATH = (
-    REPORTS_DIR
-    / "tables"
-    / "median_mad_portfolio_diagnostics.csv"
-)
+CONSTRUCTION_DIAGNOSTICS_PATH = REPORTS_DIR / "tables" / "all_method_portfolio_diagnostics.csv"
 
-CONSTRUCTION_DIAGNOSTICS_PATH = (
-    REPORTS_DIR
-    / "tables"
-    / "all_method_portfolio_diagnostics.csv"
-)
+RISK_SUMMARY_PATH = REPORTS_DIR / "tables" / "all_method_risk_summary.csv"
 
-RISK_SUMMARY_PATH = (
-    REPORTS_DIR
-    / "tables"
-    / "all_method_risk_summary.csv"
-)
+CHECKS_PATH = REPORTS_DIR / "tables" / "all_method_portfolio_checks.csv"
 
-CHECKS_PATH = (
-    REPORTS_DIR
-    / "tables"
-    / "all_method_portfolio_checks.csv"
-)
-
-REPORT_PATH = (
-    REPORTS_DIR
-    / "portfolio"
-    / "portfolio_construction_comparison.md"
-)
+REPORT_PATH = REPORTS_DIR / "portfolio" / "portfolio_construction_comparison.md"
 
 
 def evaluate_risk(
@@ -144,13 +94,9 @@ def evaluate_risk(
             config=config,
         )
 
-        summary[
-            "method"
-        ] = method
+        summary["method"] = method
 
-        blocks.append(
-            summary
-        )
+        blocks.append(summary)
 
     return pd.concat(
         blocks,
@@ -162,9 +108,7 @@ def main() -> None:
     """Build and evaluate median-MAD portfolios."""
     configure_logging()
 
-    logger = logging.getLogger(
-        "quant_equity"
-    )
+    logger = logging.getLogger("quant_equity")
 
     required_paths = (
         SIGNAL_PATH,
@@ -178,92 +122,58 @@ def main() -> None:
 
     for path in required_paths:
         if not path.exists():
-            raise FileNotFoundError(
-                f"Required input not found: {path}"
-            )
+            raise FileNotFoundError(f"Required input not found: {path}")
 
-    project_config = (
-        load_config()
-    )
+    project_config = load_config()
 
-    construction_config = (
-        BaselinePortfolioConfig.from_mapping(
-            project_config.get(
-                "portfolio_construction",
-                {},
-            )
+    construction_config = BaselinePortfolioConfig.from_mapping(
+        project_config.get(
+            "portfolio_construction",
+            {},
         )
     )
 
-    optimizer_config = (
-        PortfolioOptimizerConfig.from_mapping(
-            project_config.get(
-                "portfolio_optimizer",
-                {},
-            )
+    optimizer_config = PortfolioOptimizerConfig.from_mapping(
+        project_config.get(
+            "portfolio_optimizer",
+            {},
         )
     )
 
-    cvar_config = (
-        CvarRiskConfig.from_mapping(
-            project_config.get(
-                "portfolio_cvar",
-                {},
-            )
+    cvar_config = CvarRiskConfig.from_mapping(
+        project_config.get(
+            "portfolio_cvar",
+            {},
         )
     )
 
-    median_mad_config = (
-        MedianMadConfig.from_mapping(
-            project_config.get(
-                "portfolio_median_mad",
-                {},
-            )
+    median_mad_config = MedianMadConfig.from_mapping(
+        project_config.get(
+            "portfolio_median_mad",
+            {},
         )
     )
 
-    risk_config = (
-        PortfolioRiskConfig.from_mapping(
-            project_config.get(
-                "portfolio_risk",
-                {},
-            )
+    risk_config = PortfolioRiskConfig.from_mapping(
+        project_config.get(
+            "portfolio_risk",
+            {},
         )
     )
 
-    final_signal = pd.read_parquet(
-        SIGNAL_PATH
-    )
+    final_signal = pd.read_parquet(SIGNAL_PATH)
 
-    market_daily = pd.read_parquet(
-        MARKET_PATH
-    )
+    market_daily = pd.read_parquet(MARKET_PATH)
 
-    risk_estimates = pd.read_parquet(
-        RISK_ESTIMATES_PATH
-    )
+    risk_estimates = pd.read_parquet(RISK_ESTIMATES_PATH)
 
-    covariance = pd.read_parquet(
-        COVARIANCE_PATH
-    )
+    covariance = pd.read_parquet(COVARIANCE_PATH)
 
-    four_method_weights = (
-        pd.read_parquet(
-            FOUR_METHOD_WEIGHTS_PATH
-        )
-    )
+    four_method_weights = pd.read_parquet(FOUR_METHOD_WEIGHTS_PATH)
 
-    optimizer_diagnostics = (
-        pd.read_csv(
-            OPTIMIZER_DIAGNOSTICS_PATH
-        )
-    )
+    optimizer_diagnostics = pd.read_csv(OPTIMIZER_DIAGNOSTICS_PATH)
 
-    cvar_diagnostics = (
-        pd.read_csv(
-            CVAR_DIAGNOSTICS_PATH
-        )
-    )
+    cvar_diagnostics = pd.read_csv(CVAR_DIAGNOSTICS_PATH)
 
     (
         median_mad_weights,
@@ -292,48 +202,34 @@ def main() -> None:
                 "ticker",
             ]
         )
-        .reset_index(
-            drop=True
-        )
+        .reset_index(drop=True)
     )
 
-    construction_diagnostics = (
-        compute_portfolio_diagnostics(
-            combined_weights,
-            weight_tolerance=(
-                construction_config.weight_tolerance
-            ),
-        )
+    construction_diagnostics = compute_portfolio_diagnostics(
+        combined_weights,
+        weight_tolerance=(construction_config.weight_tolerance),
     )
 
-    general_checks = (
-        validate_baseline_portfolios(
-            combined_weights,
-            config=construction_config,
-        )
+    general_checks = validate_baseline_portfolios(
+        combined_weights,
+        config=construction_config,
     )
 
-    optimizer_checks = (
-        validate_optimizer_diagnostics(
-            optimizer_diagnostics,
-            config=optimizer_config,
-        )
+    optimizer_checks = validate_optimizer_diagnostics(
+        optimizer_diagnostics,
+        config=optimizer_config,
     )
 
-    cvar_checks = (
-        validate_cvar_diagnostics(
-            cvar_diagnostics,
-            portfolio_config=optimizer_config,
-            cvar_config=cvar_config,
-        )
+    cvar_checks = validate_cvar_diagnostics(
+        cvar_diagnostics,
+        portfolio_config=optimizer_config,
+        cvar_config=cvar_config,
     )
 
-    median_mad_checks = (
-        validate_median_mad_diagnostics(
-            median_mad_diagnostics,
-            portfolio_config=optimizer_config,
-            median_mad_config=median_mad_config,
-        )
+    median_mad_checks = validate_median_mad_diagnostics(
+        median_mad_diagnostics,
+        portfolio_config=optimizer_config,
+        median_mad_config=median_mad_config,
     )
 
     general_checks.insert(
@@ -370,21 +266,13 @@ def main() -> None:
         ignore_index=True,
     )
 
-    failed_checks = int(
-        checks[
-            "status"
-        ].eq(
-            "FAIL"
-        ).sum()
-    )
+    failed_checks = int(checks["status"].eq("FAIL").sum())
 
-    risk_summary = (
-        evaluate_risk(
-            combined_weights,
-            risk_estimates,
-            covariance,
-            config=risk_config,
-        )
+    risk_summary = evaluate_risk(
+        combined_weights,
+        risk_estimates,
+        covariance,
+        config=risk_config,
     )
 
     MEDIAN_MAD_WEIGHTS_PATH.parent.mkdir(
@@ -432,61 +320,45 @@ def main() -> None:
         index=False,
     )
 
-    comparison = (
-        construction_diagnostics.groupby(
-            "method"
-        )
-        .agg(
-            positions=(
-                "positions",
-                "mean",
-            ),
-            maximum_weight=(
-                "maximum_weight",
-                "max",
-            ),
-            maximum_sector_weight=(
-                "maximum_sector_weight",
-                "max",
-            ),
-            effective_positions=(
-                "effective_positions",
-                "mean",
-            ),
-            one_way_turnover=(
-                "one_way_turnover",
-                "mean",
-            ),
-        )
+    comparison = construction_diagnostics.groupby("method").agg(
+        positions=(
+            "positions",
+            "mean",
+        ),
+        maximum_weight=(
+            "maximum_weight",
+            "max",
+        ),
+        maximum_sector_weight=(
+            "maximum_sector_weight",
+            "max",
+        ),
+        effective_positions=(
+            "effective_positions",
+            "mean",
+        ),
+        one_way_turnover=(
+            "one_way_turnover",
+            "mean",
+        ),
     )
 
-    risk_comparison = (
-        risk_summary.groupby(
-            "method"
-        )
-        .agg(
-            predicted_volatility=(
-                "predicted_volatility",
-                "mean",
-            ),
-            beta_vs_spy=(
-                "portfolio_beta_vs_spy",
-                "mean",
-            ),
-            maximum_sector_weight=(
-                "maximum_sector_weight",
-                "max",
-            ),
-        )
+    risk_comparison = risk_summary.groupby("method").agg(
+        predicted_volatility=(
+            "predicted_volatility",
+            "mean",
+        ),
+        beta_vs_spy=(
+            "portfolio_beta_vs_spy",
+            "mean",
+        ),
+        maximum_sector_weight=(
+            "maximum_sector_weight",
+            "max",
+        ),
     )
 
-    mad_exceedance_rate = float(
-        median_mad_diagnostics[
-            "mad_violation"
-        ].gt(
-            0.0
-        ).mean()
-    )
+    mad_exceedance_rate = float(median_mad_diagnostics["mad_violation"].gt(0.0).mean())
 
     report_lines = [
         "# Portfolio Construction Comparison",
@@ -515,88 +387,58 @@ def main() -> None:
                 "one_way_turnover",
                 "portfolio_beta_vs_spy",
             ]
-        ].describe().to_string(),
+        ]
+        .describe()
+        .to_string(),
         "```",
         "",
-        "MAD limit exceedance rate: "
-        f"{mad_exceedance_rate:.2%}",
+        f"MAD limit exceedance rate: {mad_exceedance_rate:.2%}",
         "",
         "## Readiness checks",
         "",
         "```text",
-        checks.to_string(
-            index=False
-        ),
+        checks.to_string(index=False),
         "```",
         "",
     ]
 
     REPORT_PATH.write_text(
-        "\n".join(
-            report_lines
-        ),
+        "\n".join(report_lines),
         encoding="utf-8",
     )
 
     if failed_checks:
-        raise ValueError(
-            "Portfolio validation failed with "
-            f"{failed_checks} failed checks."
-        )
+        raise ValueError(f"Portfolio validation failed with {failed_checks} failed checks.")
 
-    logger.info(
-        "Median-MAD portfolio construction completed."
-    )
+    logger.info("Median-MAD portfolio construction completed.")
 
     print()
 
-    print(
-        "Institutional Quant Equity Research Platform"
-    )
+    print("Institutional Quant Equity Research Platform")
 
-    print(
-        "Median-MAD portfolio construction"
-    )
+    print("Median-MAD portfolio construction")
 
-    print(
-        "------------------------------------------------"
-    )
+    print("------------------------------------------------")
 
-    print(
-        "dates: "
-        f"{combined_weights['as_of_date'].nunique()}"
-    )
+    print(f"dates: {combined_weights['as_of_date'].nunique()}")
 
-    print(
-        "methods: "
-        f"{combined_weights['method'].nunique()}"
-    )
+    print(f"methods: {combined_weights['method'].nunique()}")
 
     print()
 
-    print(
-        "Construction comparison:"
-    )
+    print("Construction comparison:")
 
-    print(
-        comparison.to_string()
-    )
+    print(comparison.to_string())
 
     print()
 
-    print(
-        "Predicted risk:"
-    )
+    print("Predicted risk:")
 
-    print(
-        risk_comparison.to_string()
-    )
+    print(risk_comparison.to_string())
 
     print()
 
-    print(
-        "Median-MAD diagnostics:"
-    )
+    print("Median-MAD diagnostics:")
 
     print(
         median_mad_diagnostics[
@@ -615,47 +457,27 @@ def main() -> None:
 
     print()
 
-    print(
-        "MAD limit exceedance rate: "
-        f"{mad_exceedance_rate:.2%}"
-    )
+    print(f"MAD limit exceedance rate: {mad_exceedance_rate:.2%}")
 
     print()
 
-    print(
-        "optimizer_success_rate: "
-        f"{median_mad_diagnostics['optimizer_success'].mean():.2%}"
-    )
+    print(f"optimizer_success_rate: {median_mad_diagnostics['optimizer_success'].mean():.2%}")
 
     print()
 
-    print(
-        f"readiness_checks: {len(checks)}"
-    )
+    print(f"readiness_checks: {len(checks)}")
 
-    print(
-        "failed_readiness_checks: "
-        f"{failed_checks}"
-    )
+    print(f"failed_readiness_checks: {failed_checks}")
 
     print()
 
-    print(
-        f"Median-MAD weights: {MEDIAN_MAD_WEIGHTS_PATH}"
-    )
+    print(f"Median-MAD weights: {MEDIAN_MAD_WEIGHTS_PATH}")
 
-    print(
-        f"All weights: {ALL_WEIGHTS_PATH}"
-    )
+    print(f"All weights: {ALL_WEIGHTS_PATH}")
 
-    print(
-        "Median-MAD diagnostics: "
-        f"{MEDIAN_MAD_DIAGNOSTICS_PATH}"
-    )
+    print(f"Median-MAD diagnostics: {MEDIAN_MAD_DIAGNOSTICS_PATH}")
 
-    print(
-        f"Report: {REPORT_PATH}"
-    )
+    print(f"Report: {REPORT_PATH}")
 
 
 if __name__ == "__main__":
