@@ -305,3 +305,11 @@ portfolio_risk:
   reference_top_n: 20
   max_daily_adv_participation: 0.10
   weight_sum_tolerance: 0.00000001
+
+portfolio_construction:
+  candidate_count: 25
+  equal_weight_positions: 25
+  max_security_weight: 0.05
+  max_sector_weight: 0.25
+  minimum_positions: 20
+  weight_tolerance: 0.00000001
