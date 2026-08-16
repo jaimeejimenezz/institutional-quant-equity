@@ -1,0 +1,11 @@
+check,status,violations,description
+expected_methods,PASS,0,Monthly and quarterly scenarios must contain all five portfolio methods.
+calendar_quarter_signals,PASS,0,"Quarterly portfolios must use March, June, September and December signals only."
+quarterly_has_fewer_signals,PASS,0,Quarterly rebalancing must use fewer signal dates than monthly rebalancing.
+fully_invested_monthly,PASS,0,Monthly target portfolios must sum to one.
+fully_invested_quarterly,PASS,0,Quarterly target portfolios must sum to one.
+identical_comparison_window,PASS,0,Monthly and quarterly performance must be compared on identical daily dates.
+comparison_rows,PASS,0,The final comparison must contain one row per portfolio method.
+finite_comparison_metrics,PASS,0,Key rebalance-frequency metrics must remain finite.
+quarterly_fewer_rebalances,PASS,0,Quarterly scenarios must execute fewer rebalances than monthly scenarios.
+positive_final_values,PASS,0,Monthly and quarterly strategies must retain positive final value.
