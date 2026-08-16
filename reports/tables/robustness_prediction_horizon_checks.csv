@@ -1,0 +1,9 @@
+check,status,violations,description
+expected_horizons,PASS,0,"The analysis must contain 10-, 21- and 42-session horizons."
+minimum_common_dates,PASS,0,Horizon comparison must use at least 60 common OOS dates.
+same_dates_per_horizon,PASS,0,Every horizon must be evaluated on identical OOS dates.
+complete_cross_sections,PASS,0,Every horizon-date observation must use the full 50-stock cross-section.
+finite_summary_metrics,PASS,0,Key horizon robustness metrics must remain finite.
+valid_bootstrap_probabilities,PASS,0,Bootstrap probabilities must lie between zero and one.
+confidence_interval_order,PASS,0,Confidence-interval lower bounds must not exceed upper bounds.
+baseline_horizon_present,PASS,0,The frozen 21-session baseline must be present exactly once.
