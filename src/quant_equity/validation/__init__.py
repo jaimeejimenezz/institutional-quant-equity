@@ -18,6 +18,14 @@ from quant_equity.validation.modeling_panel_readiness import (
     audit_modeling_panel_readiness,
     write_modeling_panel_readiness_report,
 )
+from quant_equity.validation.walk_forward import (
+    WalkForwardConfig,
+    WalkForwardFold,
+    WalkForwardValidationError,
+    build_walk_forward_folds,
+    split_panel_by_fold,
+    walk_forward_folds_to_frame,
+)
 
 __all__ = [
     "LinearModelingConfig",
@@ -32,4 +40,10 @@ __all__ = [
     "ModelingPanelReadinessResult",
     "audit_modeling_panel_readiness",
     "write_modeling_panel_readiness_report",
+    "WalkForwardConfig",
+    "WalkForwardFold",
+    "WalkForwardValidationError",
+    "build_walk_forward_folds",
+    "split_panel_by_fold",
+    "walk_forward_folds_to_frame",
 ]
