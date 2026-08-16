@@ -1,0 +1,9 @@
+check,status,violations,description
+expected_rows,PASS,0,Capacity analysis must contain one row per method and capital level.
+five_methods_per_capital,PASS,0,Every capital level must contain all five portfolio methods.
+positive_final_values,PASS,0,All capacity scenarios must retain positive portfolio value.
+finite_capacity_metrics,PASS,0,Key capacity metrics must remain finite.
+nonnegative_costs,PASS,0,Transaction costs cannot be negative.
+cash_accounting,PASS,0,Residual cash must remain within the same absolute-or-relative accounting tolerance used by the backtest engine.
+cost_bps_non_decreasing,PASS,0,Effective execution cost should not decline as capital increases.
+adv_participation_non_decreasing,PASS,0,Maximum order-to-ADV participation should not decline as capital increases.
