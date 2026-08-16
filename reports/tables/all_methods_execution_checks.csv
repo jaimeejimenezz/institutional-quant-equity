@@ -1,0 +1,9 @@
+check,status,violations,description
+expected_methods,PASS,0,Gross and net backtests must contain all five portfolio methods.
+aligned_backtest_dates,PASS,0,All methods must use identical trading dates.
+expected_rebalances,PASS,0,Every method must execute every scheduled rebalance.
+positive_portfolio_values,PASS,0,Gross and net portfolio values must remain positive.
+nonnegative_transaction_costs,PASS,0,Execution costs cannot be negative.
+finite_transaction_costs,PASS,0,Execution costs must be finite.
+cash_accounting,PASS,0,Residual cash must remain within the configured accounting tolerance.
+comparison_rows,PASS,0,The final comparison must contain one row per portfolio method.
