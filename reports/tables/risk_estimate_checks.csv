@@ -1,0 +1,13 @@
+check,status,violations,description
+unique_keys,PASS,0,Risk estimates must have one row per date and ticker.
+signal_coverage,PASS,0,Risk estimates must exactly match the final signal universe.
+market_point_in_time,PASS,0,Market observations must not extend beyond as_of_date.
+spy_point_in_time,PASS,0,SPY observations must not extend beyond as_of_date.
+risk_window_point_in_time,PASS,0,Risk estimation windows must end on or before as_of_date.
+return_history,PASS,0,Every row must have enough trailing returns.
+beta_history,PASS,0,Every row must have enough SPY-aligned returns.
+liquidity_history,PASS,0,Every row must have enough liquidity observations.
+finite_numeric_values,PASS,0,Stored risk and liquidity values must be finite.
+non_negative_risk,PASS,0,Volatility estimates must be non-negative.
+positive_liquidity_and_price,PASS,0,Liquidity and price measures must be positive.
+valid_market_correlation,PASS,0,Correlation with SPY must remain between -1 and 1.

@@ -288,3 +288,14 @@ fundamental_factors:
     min_pair_dates: 24
     min_pair_observations: 10
     zscore_mean_tolerance: 1.0e-10
+
+risk_model:
+  volatility_window_sessions: 252
+  beta_window_sessions: 252
+  liquidity_window_sessions: 60
+  minimum_return_observations: 126
+  minimum_liquidity_observations: 20
+  annualization_factor: 252
+  covariance_window_sessions: 252
+  covariance_minimum_observations: 126
+  covariance_method: "ledoit_wolf"
