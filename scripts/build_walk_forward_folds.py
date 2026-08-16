@@ -18,38 +18,21 @@ from quant_equity.validation import (
     walk_forward_folds_to_frame,
 )
 
+PANEL_PATH = PROJECT_ROOT / "data" / "processed" / "modeling_panel.parquet"
 
-PANEL_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "processed"
-    / "modeling_panel.parquet"
-)
-
-OUTPUT_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "processed"
-    / "walk_forward_folds.parquet"
-)
+OUTPUT_PATH = PROJECT_ROOT / "data" / "processed" / "walk_forward_folds.parquet"
 
 
 def main() -> None:
     """Execute Step 12A."""
     configure_logging()
 
-    logger = logging.getLogger(
-        "quant_equity"
-    )
+    logger = logging.getLogger("quant_equity")
 
     if not PANEL_PATH.exists():
-        raise FileNotFoundError(
-            f"Modeling panel not found: {PANEL_PATH}"
-        )
+        raise FileNotFoundError(f"Modeling panel not found: {PANEL_PATH}")
 
-    panel = pd.read_parquet(
-        PANEL_PATH
-    )
+    panel = pd.read_parquet(PANEL_PATH)
 
     config = WalkForwardConfig(
         min_train_dates=60,
@@ -63,16 +46,12 @@ def main() -> None:
     )
 
     if not folds:
-        raise RuntimeError(
-            "No walk-forward folds could be generated."
-        )
+        raise RuntimeError("No walk-forward folds could be generated.")
 
-    metadata = (
-        walk_forward_folds_to_frame(
-            panel,
-            folds,
-            mode=config.mode,
-        )
+    metadata = walk_forward_folds_to_frame(
+        panel,
+        folds,
+        mode=config.mode,
     )
 
     OUTPUT_PATH.parent.mkdir(
@@ -85,108 +64,46 @@ def main() -> None:
         index=False,
     )
 
-    logger.info(
-        "Walk-forward fold generation completed."
-    )
+    logger.info("Walk-forward fold generation completed.")
 
     print()
-    print(
-        "Institutional Quant Equity Research Platform"
-    )
-    print(
-        "Purged walk-forward validation - Step 12A"
-    )
-    print(
-        "------------------------------------------------"
-    )
+    print("Institutional Quant Equity Research Platform")
+    print("Purged walk-forward validation - Step 12A")
+    print("------------------------------------------------")
 
-    print(
-        f"folds: {len(metadata)}"
-    )
+    print(f"folds: {len(metadata)}")
 
-    print(
-        "mode: "
-        f"{config.mode}"
-    )
+    print(f"mode: {config.mode}")
 
-    print(
-        "minimum_train_dates: "
-        f"{config.min_train_dates}"
-    )
+    print(f"minimum_train_dates: {config.min_train_dates}")
 
-    print(
-        "validation_dates: "
-        f"{config.validation_dates}"
-    )
+    print(f"validation_dates: {config.validation_dates}")
 
-    print(
-        "first_test_date: "
-        f"{metadata['test_date'].min().date()}"
-    )
+    print(f"first_test_date: {metadata['test_date'].min().date()}")
 
-    print(
-        "last_test_date: "
-        f"{metadata['test_date'].max().date()}"
-    )
+    print(f"last_test_date: {metadata['test_date'].max().date()}")
 
-    print(
-        "minimum_train_date_count: "
-        f"{metadata['train_date_count'].min()}"
-    )
+    print(f"minimum_train_date_count: {metadata['train_date_count'].min()}")
 
-    print(
-        "maximum_train_date_count: "
-        f"{metadata['train_date_count'].max()}"
-    )
+    print(f"maximum_train_date_count: {metadata['train_date_count'].max()}")
 
-    print(
-        "validation_date_count: "
-        f"{metadata['validation_date_count'].min()}"
-    )
+    print(f"validation_date_count: {metadata['validation_date_count'].min()}")
 
-    print(
-        "minimum_test_rows: "
-        f"{metadata['test_rows'].min()}"
-    )
+    print(f"minimum_test_rows: {metadata['test_rows'].min()}")
 
-    print(
-        "maximum_test_rows: "
-        f"{metadata['test_rows'].max()}"
-    )
+    print(f"maximum_test_rows: {metadata['test_rows'].max()}")
 
-    print(
-        "maximum_purged_dates: "
-        f"{metadata['purged_date_count'].max()}"
-    )
+    print(f"maximum_purged_dates: {metadata['purged_date_count'].max()}")
 
     maturity_violations = int(
-        (
-            metadata[
-                "max_train_target_end"
-            ]
-            > metadata[
-                "test_date"
-            ]
-        ).sum()
-        + (
-            metadata[
-                "max_validation_target_end"
-            ]
-            > metadata[
-                "test_date"
-            ]
-        ).sum()
+        (metadata["max_train_target_end"] > metadata["test_date"]).sum()
+        + (metadata["max_validation_target_end"] > metadata["test_date"]).sum()
     )
 
-    print(
-        "label_maturity_violations: "
-        f"{maturity_violations}"
-    )
+    print(f"label_maturity_violations: {maturity_violations}")
 
     print()
-    print(
-        "First folds:"
-    )
+    print("First folds:")
 
     preview_columns = [
         "fold_id",
@@ -200,20 +117,10 @@ def main() -> None:
         "test_rows",
     ]
 
-    print(
-        metadata[
-            preview_columns
-        ]
-        .head()
-        .to_string(
-            index=False
-        )
-    )
+    print(metadata[preview_columns].head().to_string(index=False))
 
     print()
-    print(
-        f"Output: {OUTPUT_PATH}"
-    )
+    print(f"Output: {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":
