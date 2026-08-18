@@ -49,7 +49,7 @@ data/processed/*
 !data/processed/trades_all_methods_net.parquet
 
 # Trained models
-models/
+/models/
 *.pkl
 *.pickle
 *.joblib
@@ -62,3 +62,5 @@ models/
 .DS_Store
 Thumbs.db
 desktop.ini
+# Generated model reports
+/reports/models/
