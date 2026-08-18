@@ -320,6 +320,21 @@ DASHBOARD_SOURCES: dict[str, DashboardSource] = {
         description="Candidate ensemble comparison.",
         required_columns=("model_name", "mean_ic", "annualized_ic_ir"),
     ),
+    "ensemble_correlations": DashboardSource(
+        source_id="ensemble_correlations",
+        relative_path="reports/tables/ensemble_signal_correlations.csv",
+        area="research",
+        description="Cross-sectional correlation diagnostics for ensemble component signals.",
+        required_columns=(
+            "signal_a",
+            "signal_b",
+            "months",
+            "mean_spearman",
+            "median_spearman",
+            "minimum_spearman",
+            "maximum_spearman",
+        ),
+    ),
     "robustness_inventory": DashboardSource(
         source_id="robustness_inventory",
         relative_path="reports/tables/robustness_evaluation_check_inventory.csv",
