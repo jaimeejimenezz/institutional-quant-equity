@@ -20,8 +20,9 @@ from quant_equity.reporting.dashboard_catalog import DEFAULT_STRATEGY, strategy_
 from quant_equity.reporting.dashboard_metrics import (
     build_drawdown_series,
     build_performance_index,
-    latest_portfolio_weights,
     latest_strategy_row,
+    portfolio_dates,
+    portfolio_snapshot,
     sector_exposure,
     strategy_summary,
 )
@@ -43,7 +44,23 @@ robustness_coverage = load_dashboard_source("robustness_coverage")
 summary = strategy_summary(summary_table, strategy)
 performance_index = build_performance_index(net_daily, benchmark, strategy)
 drawdowns = build_drawdown_series(performance_index)
-portfolio = latest_portfolio_weights(target_weights, strategy)
+available_portfolio_dates = portfolio_dates(target_weights, strategy)
+
+if not available_portfolio_dates:
+    raise ValueError(f"No portfolio dates found for {strategy!r}.")
+
+latest_portfolio_date = available_portfolio_dates[-1]
+
+portfolio = portfolio_snapshot(
+    target_weights,
+    strategy,
+    latest_portfolio_date,
+)
+
+portfolio = portfolio.loc[
+    portfolio["weight"].astype(float) > 1e-10
+].copy()
+
 sectors = sector_exposure(portfolio)
 risk = latest_strategy_row(
     portfolio_risk,
@@ -204,12 +221,16 @@ with portfolio_column:
             ]
         )
 
-        holdings = portfolio.loc[:, ["ticker", "sector", "weight", "previous_weight"]].head(6)
+        holdings = portfolio.loc[
+            :,
+            ["ticker", "sector", "weight", "weight_delta"],
+        ].head(6)
+
         holdings = holdings.assign(
             Weight=holdings["weight"].astype(float).map(lambda value: f"{value:.2%}"),
-            Delta=(
-                holdings["weight"].astype(float) - holdings["previous_weight"].astype(float)
-            ).map(lambda value: f"{value:+.2%}"),
+            Delta=holdings["weight_delta"]
+            .astype(float)
+            .map(lambda value: f"{value:+.2%}"),
         ).rename(columns={"ticker": "Ticker", "sector": "Sector"})
         st.dataframe(
             holdings[["Ticker", "Sector", "Weight", "Delta"]],
