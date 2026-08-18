@@ -37,7 +37,16 @@ logs/
 # Generated datasets
 data/raw/
 data/interim/
-data/processed/
+data/processed/*
+!data/processed/backtest_all_methods_gross_daily.parquet
+!data/processed/backtest_all_methods_net_daily.parquet
+!data/processed/benchmark_spy_daily.parquet
+!data/processed/final_alpha_signal.parquet
+!data/processed/modeling_panel.parquet
+!data/processed/positions_all_methods_net.parquet
+!data/processed/risk_estimates.parquet
+!data/processed/target_weights_all_methods.parquet
+!data/processed/trades_all_methods_net.parquet
 
 # Trained models
 models/
