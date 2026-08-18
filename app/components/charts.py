@@ -685,3 +685,254 @@ def risk_method_comparison_figure(comparison: pd.DataFrame) -> go.Figure:
     )
     fig.update_xaxes(title="Beta vs SPY", tickformat=".2f")
     return fig
+
+
+def execution_cost_breakdown_figure(breakdown: pd.DataFrame) -> go.Figure:
+    ordered = breakdown.sort_values("cost", ascending=True).copy()
+    ordered["label"] = ordered["share"].map(lambda value: f"{value:.1%}")
+
+    fig = go.Figure(
+        go.Bar(
+            x=ordered["cost"],
+            y=ordered["component"],
+            orientation="h",
+            marker={"color": _SELECTED},
+            text=ordered["label"],
+            textposition="outside",
+            cliponaxis=False,
+            customdata=ordered[["share"]],
+            hovertemplate=("%{y}<br>Cost $%{x:,.0f}<br>Share %{customdata[0]:.1%}<extra></extra>"),
+        )
+    )
+    maximum = float(ordered["cost"].max()) if not ordered.empty else 0.0
+    fig = _style_figure(
+        fig,
+        yaxis_title=None,
+        y_tickformat=None,
+        height=310,
+        show_legend=False,
+    )
+    fig.update_xaxes(
+        title="Modeled execution cost",
+        range=[0.0, maximum * 1.22 if maximum > 0.0 else 1.0],
+    )
+    return fig
+
+
+def rebalance_cost_history_figure(history: pd.DataFrame) -> go.Figure:
+    fig = go.Figure(
+        go.Scatter(
+            x=history["signal_date"],
+            y=history["effective_cost_bps"],
+            mode="lines+markers",
+            name="Effective cost",
+            line={"color": _SELECTED, "width": 2.2},
+            marker={"size": 5},
+            customdata=history[
+                [
+                    "execution_cost",
+                    "traded_notional",
+                    "trades",
+                    "maximum_order_adv_fraction",
+                ]
+            ],
+            hovertemplate=(
+                "%{x|%Y-%m-%d}<br>"
+                "Effective cost %{y:.2f} bps<br>"
+                "Cost $%{customdata[0]:,.0f}<br>"
+                "Traded $%{customdata[1]:,.0f}<br>"
+                "Trades %{customdata[2]}<br>"
+                "Max order / ADV %{customdata[3]:.2%}<extra></extra>"
+            ),
+        )
+    )
+    return _style_figure(
+        fig,
+        yaxis_title="Effective cost",
+        y_tickformat=".2f",
+        height=330,
+        show_legend=False,
+    )
+
+
+def capacity_metric_figure(
+    capacity: pd.DataFrame,
+    *,
+    metric: str,
+    title: str,
+    tickformat: str | None = None,
+) -> go.Figure:
+    ordered = capacity.sort_values("capital").copy()
+    tick_values = ordered["capital"].tolist()
+    tick_labels = [_capital_tick_label(float(value)) for value in tick_values]
+
+    fig = go.Figure(
+        go.Scatter(
+            x=ordered["capital"],
+            y=ordered[metric],
+            mode="lines+markers",
+            line={"color": _SELECTED, "width": 2.4},
+            marker={"size": 7},
+            hovertemplate="$%{x:,.0f}<br>%{y}<extra></extra>",
+        )
+    )
+    fig = _style_figure(
+        fig,
+        yaxis_title=title,
+        y_tickformat=tickformat,
+        height=320,
+        show_legend=False,
+    )
+    fig.update_xaxes(
+        title="Portfolio capital",
+        type="log",
+        tickmode="array",
+        tickvals=tick_values,
+        ticktext=tick_labels,
+    )
+    return fig
+
+
+def _capital_tick_label(value: float) -> str:
+    if value >= 1_000_000:
+        return f"${value / 1_000_000:.0f}M"
+    if value >= 1_000:
+        return f"${value / 1_000:.0f}K"
+    return f"${value:,.0f}"
+
+
+def transaction_cost_sensitivity_figure(
+    sensitivity: pd.DataFrame,
+) -> go.Figure:
+    label_map = {
+        "linear_0bps": "0 bps",
+        "linear_5bps": "5 bps",
+        "linear_10bps": "10 bps",
+        "linear_20bps": "20 bps",
+        "linear_50bps": "50 bps",
+        "liquidity_model": "Liquidity model",
+    }
+    order = [
+        "linear_0bps",
+        "linear_5bps",
+        "linear_10bps",
+        "linear_20bps",
+        "linear_50bps",
+        "liquidity_model",
+    ]
+
+    ordered = sensitivity.copy()
+    ordered["scenario"] = pd.Categorical(
+        ordered["scenario"],
+        categories=order,
+        ordered=True,
+    )
+    ordered = ordered.sort_values("scenario", ascending=False).copy()
+    scenario_text = ordered["scenario"].astype(str)
+    ordered["scenario_label"] = scenario_text.map(label_map)
+    ordered["cagr_label"] = ordered["cagr"].map(lambda value: f"{value:.1%}")
+    ordered["bar_color"] = scenario_text.map(
+        lambda scenario: _SELECTED if scenario == "liquidity_model" else _BENCHMARK
+    )
+
+    fig = go.Figure(
+        go.Bar(
+            x=ordered["cagr"],
+            y=ordered["scenario_label"],
+            orientation="h",
+            marker={"color": ordered["bar_color"]},
+            text=ordered["cagr_label"],
+            textposition="outside",
+            cliponaxis=False,
+            customdata=ordered[
+                [
+                    "sharpe_ratio",
+                    "maximum_drawdown",
+                    "total_transaction_cost",
+                ]
+            ],
+            hovertemplate=(
+                "%{y}<br>"
+                "CAGR %{x:.1%}<br>"
+                "Sharpe %{customdata[0]:.2f}<br>"
+                "Max DD %{customdata[1]:.1%}<br>"
+                "Total cost $%{customdata[2]:,.0f}<extra></extra>"
+            ),
+        )
+    )
+    maximum = float(ordered["cagr"].max()) if not ordered.empty else 0.0
+    fig = _style_figure(
+        fig,
+        yaxis_title=None,
+        y_tickformat=None,
+        height=340,
+        show_legend=False,
+        x_tickformat=".0%",
+    )
+    fig.update_xaxes(
+        title="CAGR",
+        range=[0.0, maximum * 1.12 if maximum > 0.0 else 1.0],
+    )
+    return fig
+
+
+def execution_method_comparison_figure(comparison: pd.DataFrame) -> go.Figure:
+    short_labels = {
+        "score_weighted": "Score Weighted",
+        "top_n_equal_weight": "Top-N",
+        "median_mad_de": "Median-MAD",
+        "alpha_risk_turnover": "Alpha-Risk",
+        "cvar": "CVaR",
+    }
+    fig = go.Figure()
+
+    for role, group in comparison.groupby("role", sort=False):
+        selected = role == "selected"
+        labels = group["strategy_name"].map(
+            lambda method: short_labels.get(str(method), strategy_label(str(method)))
+        )
+        full_labels = group["strategy_name"].map(lambda method: strategy_label(str(method)))
+        customdata = pd.DataFrame(
+            {
+                "label": full_labels,
+                "transaction_cost": group["total_transaction_cost"],
+                "portfolio_value": group["final_portfolio_value"],
+                "rebalances": group["rebalances"],
+            }
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=group["mean_one_way_turnover"],
+                y=group["effective_cost_bps"],
+                mode="markers+text",
+                text=labels,
+                textposition="top center",
+                marker={
+                    "color": _SELECTED if selected else _METHOD_OTHER,
+                    "size": 16 if selected else 12,
+                    "line": {"width": 1, "color": _BACKGROUND},
+                },
+                customdata=customdata,
+                hovertemplate=(
+                    "%{customdata[0]}<br>"
+                    "Turnover %{x:.1%}<br>"
+                    "Effective cost %{y:.2f} bps<br>"
+                    "Total cost $%{customdata[1]:,.0f}<br>"
+                    "Final value $%{customdata[2]:,.0f}<br>"
+                    "Rebalances %{customdata[3]}<extra></extra>"
+                ),
+                showlegend=False,
+            )
+        )
+
+    fig = _style_figure(
+        fig,
+        yaxis_title="Effective cost (bps)",
+        y_tickformat=".2f",
+        height=360,
+        show_legend=False,
+        x_tickformat=".0%",
+    )
+    fig.update_xaxes(title="Mean one-way turnover")
+    return fig

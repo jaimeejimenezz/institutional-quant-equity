@@ -783,3 +783,230 @@ def risk_method_comparison(
         ["role", "predicted_volatility"],
         ascending=[True, True],
     ).reset_index(drop=True)
+
+
+def execution_summary_row(
+    execution_summary: pd.DataFrame,
+    strategy_name: str,
+) -> pd.Series:
+    rows = execution_summary.loc[execution_summary["strategy_name"].eq(strategy_name)]
+    if len(rows) != 1:
+        raise ValueError(
+            f"Expected one execution summary row for {strategy_name!r}, found {len(rows)}."
+        )
+    return rows.iloc[0].copy()
+
+
+def execution_cost_row(
+    cost_components: pd.DataFrame,
+    strategy_name: str,
+) -> pd.Series:
+    rows = cost_components.loc[cost_components["strategy_name"].eq(strategy_name)]
+    if len(rows) != 1:
+        raise ValueError(
+            f"Expected one execution-cost row for {strategy_name!r}, found {len(rows)}."
+        )
+    return rows.iloc[0].copy()
+
+
+def execution_cost_breakdown(
+    cost_components: pd.DataFrame,
+    strategy_name: str,
+) -> pd.DataFrame:
+    row = execution_cost_row(cost_components, strategy_name)
+    labels = {
+        "commission_cost": "Commission",
+        "spread_cost": "Spread",
+        "slippage_cost": "Slippage",
+        "market_impact_cost": "Market impact",
+    }
+    records = [
+        {
+            "component": label,
+            "cost": float(row[column]),
+        }
+        for column, label in labels.items()
+    ]
+    frame = pd.DataFrame(records)
+    total = float(frame["cost"].sum())
+    frame["share"] = frame["cost"] / total if total > 0.0 else 0.0
+    return frame.sort_values("cost", ascending=False).reset_index(drop=True)
+
+
+def execution_dates(
+    trades: pd.DataFrame,
+    strategy_name: str,
+) -> tuple[pd.Timestamp, ...]:
+    subset = trades.loc[trades["strategy_name"].eq(strategy_name)]
+    dates = (
+        pd.to_datetime(
+            subset["execution_date"],
+            errors="coerce",
+        )
+        .dropna()
+        .unique()
+    )
+    return tuple(pd.Timestamp(value) for value in sorted(dates))
+
+
+def execution_trade_snapshot(
+    trades: pd.DataFrame,
+    strategy_name: str,
+    execution_date: pd.Timestamp,
+) -> pd.DataFrame:
+    selected_date = pd.Timestamp(execution_date).normalize()
+    frame = trades.loc[trades["strategy_name"].eq(strategy_name)].copy()
+    frame["execution_date"] = pd.to_datetime(
+        frame["execution_date"],
+        errors="coerce",
+    )
+    frame = frame.loc[frame["execution_date"].eq(selected_date)].copy()
+    if frame.empty:
+        raise ValueError(f"No trades found for {strategy_name!r} on {selected_date.date()}.")
+
+    numeric_columns = [
+        "trade_notional",
+        "total_execution_cost",
+        "effective_cost_bps",
+        "order_adv_fraction",
+    ]
+    for column in numeric_columns:
+        frame[column] = pd.to_numeric(frame[column], errors="raise")
+
+    return frame.sort_values(
+        "total_execution_cost",
+        ascending=False,
+    ).reset_index(drop=True)
+
+
+def rebalance_execution_history(
+    trades: pd.DataFrame,
+    strategy_name: str,
+) -> pd.DataFrame:
+    frame = trades.loc[trades["strategy_name"].eq(strategy_name)].copy()
+    if frame.empty:
+        raise ValueError(f"No trades found for {strategy_name!r}.")
+
+    frame["signal_date"] = pd.to_datetime(frame["signal_date"], errors="coerce")
+    frame["trade_notional"] = pd.to_numeric(
+        frame["trade_notional"],
+        errors="raise",
+    )
+    if "absolute_trade_notional" in frame.columns:
+        frame["gross_trade_notional"] = pd.to_numeric(
+            frame["absolute_trade_notional"],
+            errors="raise",
+        )
+    else:
+        frame["gross_trade_notional"] = frame["trade_notional"].abs()
+
+    frame["total_execution_cost"] = pd.to_numeric(
+        frame["total_execution_cost"],
+        errors="raise",
+    )
+    frame["order_adv_fraction"] = pd.to_numeric(
+        frame["order_adv_fraction"],
+        errors="raise",
+    )
+
+    grouped = (
+        frame.dropna(subset=["signal_date"])
+        .groupby("signal_date", as_index=False)
+        .agg(
+            trades=("ticker", "size"),
+            traded_notional=("gross_trade_notional", "sum"),
+            execution_cost=("total_execution_cost", "sum"),
+            maximum_order_adv_fraction=("order_adv_fraction", "max"),
+        )
+        .sort_values("signal_date")
+    )
+    denominator = grouped["traded_notional"]
+    grouped["effective_cost_bps"] = np.where(
+        denominator.gt(0.0),
+        grouped["execution_cost"] / denominator * 10_000.0,
+        np.nan,
+    )
+    return grouped.reset_index(drop=True)
+
+
+def capacity_curve(
+    capacity: pd.DataFrame,
+    strategy_name: str,
+) -> pd.DataFrame:
+    frame = capacity.loc[capacity["strategy_name"].eq(strategy_name)].copy()
+    if frame.empty:
+        raise ValueError(f"No capacity analysis found for {strategy_name!r}.")
+
+    numeric_columns = [
+        "capital",
+        "net_cagr",
+        "net_sharpe_ratio",
+        "effective_cost_bps",
+        "maximum_order_adv_fraction",
+    ]
+    for column in numeric_columns:
+        frame[column] = pd.to_numeric(frame[column], errors="raise")
+
+    return frame.sort_values("capital").reset_index(drop=True)
+
+
+def transaction_cost_sensitivity_curve(
+    sensitivity: pd.DataFrame,
+    strategy_name: str,
+) -> pd.DataFrame:
+    frame = sensitivity.loc[sensitivity["strategy_name"].eq(strategy_name)].copy()
+    if frame.empty:
+        raise ValueError(f"No transaction-cost sensitivity found for {strategy_name!r}.")
+
+    numeric_columns = [
+        "cagr",
+        "sharpe_ratio",
+        "maximum_drawdown",
+        "total_transaction_cost",
+    ]
+    for column in numeric_columns:
+        frame[column] = pd.to_numeric(frame[column], errors="raise")
+
+    frame["scenario"] = frame["scenario"].astype(str)
+    return frame.reset_index(drop=True)
+
+
+def execution_method_comparison(
+    execution_summary: pd.DataFrame,
+    cost_components: pd.DataFrame,
+    strategy_name: str,
+) -> pd.DataFrame:
+    summary = execution_summary.loc[
+        :,
+        [
+            "strategy_name",
+            "rebalances",
+            "final_portfolio_value",
+            "total_transaction_cost",
+            "mean_one_way_turnover",
+        ],
+    ].copy()
+    costs = cost_components.loc[
+        :,
+        [
+            "strategy_name",
+            "effective_cost_bps",
+        ],
+    ].copy()
+
+    frame = summary.merge(
+        costs,
+        on="strategy_name",
+        how="inner",
+        validate="one_to_one",
+    )
+    frame["role"] = np.where(
+        frame["strategy_name"].eq(strategy_name),
+        "selected",
+        "other",
+    )
+    frame["label"] = frame["strategy_name"].astype(str).map(strategy_label)
+    return frame.sort_values(
+        ["role", "mean_one_way_turnover"],
+        ascending=[True, True],
+    ).reset_index(drop=True)
