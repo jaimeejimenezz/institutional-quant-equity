@@ -232,3 +232,113 @@ def _normalize_index(values: pd.Series) -> pd.Series:
         raise ValueError("Performance series must start from a finite positive value.")
 
     return numeric.astype(float) / first * 100.0
+
+
+def signal_dates(alpha_signal: pd.DataFrame) -> tuple[pd.Timestamp, ...]:
+    dates = pd.to_datetime(alpha_signal["as_of_date"], errors="coerce").dropna()
+    unique = sorted(pd.Timestamp(value) for value in dates.unique())
+    return tuple(unique)
+
+
+def build_alpha_snapshot(
+    alpha_signal: pd.DataFrame,
+    security_risk: pd.DataFrame,
+    target_weights: pd.DataFrame,
+    strategy_name: str,
+    as_of_date: pd.Timestamp,
+) -> pd.DataFrame:
+    selected_date = pd.Timestamp(as_of_date).normalize()
+
+    signal = alpha_signal.copy()
+    signal["as_of_date"] = pd.to_datetime(signal["as_of_date"], errors="coerce")
+    signal = signal.loc[signal["as_of_date"] == selected_date].copy()
+    if signal.empty:
+        raise ValueError(f"No alpha signal found for {selected_date.date()}.")
+
+    risk = security_risk.copy()
+    risk["as_of_date"] = pd.to_datetime(risk["as_of_date"], errors="coerce")
+    risk = risk.loc[risk["as_of_date"] == selected_date].copy()
+    if risk.empty:
+        raise ValueError(f"No security risk found for {selected_date.date()}.")
+
+    weights = target_weights.loc[target_weights["method"] == strategy_name].copy()
+    weights["as_of_date"] = pd.to_datetime(weights["as_of_date"], errors="coerce")
+    weights = weights.loc[weights["as_of_date"] == selected_date].copy()
+
+    risk_columns = [
+        "as_of_date",
+        "ticker",
+        "annualized_volatility",
+        "annualized_downside_volatility",
+        "beta_vs_spy",
+        "correlation_vs_spy",
+        "average_dollar_volume",
+    ]
+    weight_columns = ["as_of_date", "ticker", "weight"]
+
+    snapshot = signal.merge(
+        risk[risk_columns],
+        on=["as_of_date", "ticker"],
+        how="left",
+        validate="one_to_one",
+    )
+    snapshot = snapshot.merge(
+        weights[weight_columns].rename(columns={"weight": "selected_weight"}),
+        on=["as_of_date", "ticker"],
+        how="left",
+        validate="one_to_one",
+    )
+    snapshot["selected_weight"] = snapshot["selected_weight"].fillna(0.0)
+
+    if snapshot["ticker"].duplicated().any():
+        raise ValueError("Alpha snapshot contains duplicate tickers.")
+    if snapshot["rank"].duplicated().any():
+        raise ValueError("Alpha snapshot contains duplicate ranks.")
+
+    return snapshot.sort_values("rank").reset_index(drop=True)
+
+
+def ensemble_weights(snapshot: pd.DataFrame) -> dict[str, float]:
+    columns = {
+        "Technical composite": "composite_weight",
+        "Elastic Net": "elastic_net_weight",
+        "LightGBM ranker": "lightgbm_ranker_weight",
+    }
+    values: dict[str, float] = {}
+
+    for label, column in columns.items():
+        numeric = pd.to_numeric(snapshot[column], errors="coerce").dropna()
+        if numeric.empty:
+            raise ValueError(f"No valid values found for {column!r}.")
+        if not np.allclose(numeric.to_numpy(dtype=float), float(numeric.iloc[0])):
+            raise ValueError(f"Ensemble weight {column!r} is not constant in the snapshot.")
+        values[label] = float(numeric.iloc[0])
+
+    if not np.isclose(sum(values.values()), 1.0, atol=1e-8):
+        raise ValueError("Ensemble weights do not sum to one.")
+    return values
+
+
+def parse_model_contributions(value: str) -> pd.DataFrame:
+    import json
+
+    parsed = json.loads(str(value))
+    order = (
+        ("technical_composite", "Technical composite"),
+        ("elastic_net", "Elastic Net"),
+        ("lightgbm_ranker", "LightGBM ranker"),
+    )
+    rows = []
+    for key, label in order:
+        payload = parsed.get(key)
+        if not isinstance(payload, dict):
+            raise ValueError(f"Missing model contribution payload for {key!r}.")
+        rows.append(
+            {
+                "component": label,
+                "percentile": float(payload["percentile"]),
+                "weight": float(payload["weight"]),
+                "contribution": float(payload["contribution"]),
+            }
+        )
+    return pd.DataFrame(rows)

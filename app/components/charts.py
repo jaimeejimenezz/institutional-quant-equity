@@ -153,3 +153,87 @@ def _style_figure(
     if x_tickformat is not None:
         fig.update_xaxes(tickformat=x_tickformat)
     return fig
+
+
+_ALPHA_HELD = "#17324D"
+_ALPHA_NOT_HELD = "#AAB3BC"
+_COMPONENT_COLORS = {
+    "Technical composite": "#4F6B84",
+    "Elastic Net": "#2F6B5F",
+    "LightGBM ranker": "#B08D57",
+}
+
+
+def alpha_ranking_figure(snapshot: pd.DataFrame, *, top_n: int = 15) -> go.Figure:
+    ordered = snapshot.nsmallest(top_n, "rank").sort_values("rank", ascending=False)
+    colors = [
+        _ALPHA_HELD if float(weight) > 0.0 else _ALPHA_NOT_HELD
+        for weight in ordered["selected_weight"]
+    ]
+    labels = ordered["percentile_score"].map(lambda value: f"{value:.0%}")
+
+    fig = go.Figure(
+        go.Bar(
+            x=ordered["percentile_score"],
+            y=ordered["ticker"],
+            orientation="h",
+            marker={"color": colors},
+            text=labels,
+            textposition="outside",
+            cliponaxis=False,
+            customdata=ordered[["rank", "sector", "selected_weight"]],
+            hovertemplate=(
+                "Rank %{customdata[0]}<br>"
+                "%{customdata[1]}<br>"
+                "Signal %{x:.1%}<br>"
+                "Portfolio weight %{customdata[2]:.2%}<extra></extra>"
+            ),
+        )
+    )
+    fig = _style_figure(
+        fig,
+        yaxis_title=None,
+        y_tickformat=None,
+        height=430,
+        show_legend=False,
+        x_tickformat=".0%",
+    )
+    fig.update_xaxes(range=[0.0, 1.08])
+    return fig
+
+
+def component_contribution_figure(
+    snapshot: pd.DataFrame,
+    *,
+    top_n: int = 8,
+) -> go.Figure:
+    ordered = snapshot.nsmallest(top_n, "rank").sort_values("rank", ascending=False)
+    components = (
+        ("Technical composite", "composite_contribution"),
+        ("Elastic Net", "elastic_net_contribution"),
+        ("LightGBM ranker", "lightgbm_ranker_contribution"),
+    )
+
+    fig = go.Figure()
+    for label, column in components:
+        fig.add_trace(
+            go.Bar(
+                x=ordered[column],
+                y=ordered["ticker"],
+                orientation="h",
+                name=label,
+                marker={"color": _COMPONENT_COLORS[label]},
+                hovertemplate=f"{label}: %{{x:.3f}}<extra></extra>",
+            )
+        )
+
+    fig = _style_figure(
+        fig,
+        yaxis_title=None,
+        y_tickformat=None,
+        height=360,
+        show_legend=True,
+    )
+    fig.update_layout(barmode="stack", hovermode="y unified")
+    fig.update_xaxes(title="Weighted component contribution")
+    return fig
