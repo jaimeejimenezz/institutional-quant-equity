@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from quant_equity.reporting.dashboard_catalog import strategy_label
+
 
 @dataclass(frozen=True)
 class OverviewSummary:
@@ -581,3 +583,203 @@ def _dated_method_row(
             f"found {len(subset)}."
         )
     return subset.iloc[0].copy()
+
+
+def risk_dates(
+    portfolio_risk: pd.DataFrame,
+    strategy_name: str,
+) -> tuple[pd.Timestamp, ...]:
+    subset = portfolio_risk.loc[portfolio_risk["method"] == strategy_name].copy()
+    dates = pd.to_datetime(subset["as_of_date"], errors="coerce").dropna().unique()
+    return tuple(pd.Timestamp(value) for value in sorted(dates))
+
+
+def risk_summary_row(
+    portfolio_risk: pd.DataFrame,
+    strategy_name: str,
+    as_of_date: pd.Timestamp,
+) -> pd.Series:
+    return _dated_method_row(
+        portfolio_risk,
+        strategy_name,
+        pd.Timestamp(as_of_date),
+    )
+
+
+def risk_history(
+    portfolio_risk: pd.DataFrame,
+    strategy_name: str,
+    *,
+    baseline_strategy: str = "top_n_equal_weight",
+) -> pd.DataFrame:
+    methods = [strategy_name]
+    if baseline_strategy != strategy_name:
+        methods.append(baseline_strategy)
+
+    subset = portfolio_risk.loc[
+        portfolio_risk["method"].isin(methods),
+        [
+            "as_of_date",
+            "method",
+            "predicted_volatility",
+            "portfolio_beta_vs_spy",
+        ],
+    ].copy()
+    if subset.empty:
+        raise ValueError("No portfolio risk history is available.")
+
+    subset["as_of_date"] = pd.to_datetime(subset["as_of_date"], errors="coerce")
+    subset = subset.dropna(subset=["as_of_date"]).sort_values(["as_of_date", "method"])
+    subset["role"] = np.where(
+        subset["method"].eq(strategy_name),
+        "selected",
+        "baseline",
+    )
+    return subset.reset_index(drop=True)
+
+
+def current_security_risk(
+    target_weights: pd.DataFrame,
+    security_risk: pd.DataFrame,
+    strategy_name: str,
+    as_of_date: pd.Timestamp,
+    *,
+    active_positions: int | None = None,
+) -> pd.DataFrame:
+    selected_date = pd.Timestamp(as_of_date).normalize()
+
+    weights = target_weights.loc[
+        target_weights["method"].eq(strategy_name),
+        ["as_of_date", "ticker", "sector", "weight"],
+    ].copy()
+    weights["as_of_date"] = pd.to_datetime(weights["as_of_date"], errors="coerce")
+    weights["weight"] = pd.to_numeric(weights["weight"], errors="coerce")
+    weights = weights.loc[
+        weights["as_of_date"].eq(selected_date) & weights["weight"].gt(1e-10)
+    ].copy()
+    if weights.empty:
+        raise ValueError(
+            f"No positive target weights found for {strategy_name!r} on {selected_date.date()}."
+        )
+
+    risk = security_risk.copy()
+    risk["as_of_date"] = pd.to_datetime(risk["as_of_date"], errors="coerce")
+    risk = risk.loc[
+        risk["as_of_date"].eq(selected_date),
+        [
+            "ticker",
+            "annualized_volatility",
+            "annualized_downside_volatility",
+            "beta_vs_spy",
+            "correlation_vs_spy",
+            "average_dollar_volume",
+        ],
+    ].copy()
+
+    result = weights.merge(risk, on="ticker", how="left", validate="one_to_one")
+    required = [
+        "annualized_volatility",
+        "annualized_downside_volatility",
+        "beta_vs_spy",
+        "correlation_vs_spy",
+        "average_dollar_volume",
+    ]
+    if result[required].isna().any().any():
+        missing = result.loc[result[required].isna().any(axis=1), "ticker"].tolist()
+        raise ValueError(f"Missing security risk estimates for: {missing}")
+
+    result = result.sort_values("weight", ascending=False).reset_index(drop=True)
+    if active_positions is not None:
+        if active_positions <= 0:
+            raise ValueError("active_positions must be positive when provided.")
+        result = result.head(active_positions).copy()
+
+    return result.sort_values(
+        ["annualized_volatility", "weight"],
+        ascending=False,
+    ).reset_index(drop=True)
+
+
+def covariance_snapshot(
+    covariance_diagnostics: pd.DataFrame,
+    as_of_date: pd.Timestamp,
+) -> pd.Series:
+    selected_date = pd.Timestamp(as_of_date).normalize()
+    frame = covariance_diagnostics.copy()
+    frame["as_of_date"] = pd.to_datetime(frame["as_of_date"], errors="coerce")
+    rows = frame.loc[frame["as_of_date"].eq(selected_date)]
+    if len(rows) != 1:
+        raise ValueError(
+            f"Expected one covariance row on {selected_date.date()}, found {len(rows)}."
+        )
+    return rows.iloc[0].copy()
+
+
+def covariance_history(covariance_diagnostics: pd.DataFrame) -> pd.DataFrame:
+    frame = covariance_diagnostics.loc[
+        :,
+        [
+            "as_of_date",
+            "shrinkage",
+            "shrinkage_condition_number",
+            "mean_pairwise_correlation",
+            "maximum_pairwise_correlation",
+        ],
+    ].copy()
+    frame["as_of_date"] = pd.to_datetime(frame["as_of_date"], errors="coerce")
+    return frame.dropna(subset=["as_of_date"]).sort_values("as_of_date").reset_index(drop=True)
+
+
+def reference_risk_contribution_snapshot(
+    contributions: pd.DataFrame,
+    as_of_date: pd.Timestamp,
+) -> pd.DataFrame:
+    selected_date = pd.Timestamp(as_of_date).normalize()
+    frame = contributions.copy()
+    frame["as_of_date"] = pd.to_datetime(frame["as_of_date"], errors="coerce")
+    frame = frame.loc[frame["as_of_date"].eq(selected_date)].copy()
+    if frame.empty:
+        raise ValueError(f"No reference risk contributions found on {selected_date.date()}.")
+
+    numeric_columns = [
+        "weight",
+        "annualized_volatility",
+        "beta_vs_spy",
+        "marginal_risk",
+        "component_risk",
+        "risk_contribution_share",
+        "average_dollar_volume",
+        "position_adv_fraction",
+        "liquidation_days",
+    ]
+    for column in numeric_columns:
+        frame[column] = pd.to_numeric(frame[column], errors="raise")
+
+    return frame.sort_values(
+        "risk_contribution_share",
+        ascending=False,
+    ).reset_index(drop=True)
+
+
+def risk_method_comparison(
+    portfolio_risk: pd.DataFrame,
+    strategy_name: str,
+    as_of_date: pd.Timestamp,
+) -> pd.DataFrame:
+    selected_date = pd.Timestamp(as_of_date).normalize()
+    frame = portfolio_risk.copy()
+    frame["as_of_date"] = pd.to_datetime(frame["as_of_date"], errors="coerce")
+    frame = frame.loc[frame["as_of_date"].eq(selected_date)].copy()
+    if frame.empty:
+        raise ValueError(f"No method risk comparison available on {selected_date.date()}.")
+
+    frame["role"] = np.where(
+        frame["method"].eq(strategy_name),
+        "selected",
+        "other",
+    )
+    frame["label"] = frame["method"].astype(str).map(strategy_label)
+    return frame.sort_values(
+        ["role", "predicted_volatility"],
+        ascending=[True, True],
+    ).reset_index(drop=True)

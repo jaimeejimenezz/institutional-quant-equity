@@ -455,3 +455,233 @@ def portfolio_method_comparison_figure(comparison: pd.DataFrame) -> go.Figure:
     )
     fig.update_xaxes(title="One-way turnover")
     return fig
+
+
+def risk_history_figure(
+    history: pd.DataFrame,
+    *,
+    metric: str,
+    title: str,
+    tickformat: str,
+) -> go.Figure:
+    fig = go.Figure()
+
+    for (method, role), group in history.groupby(["method", "role"], sort=False):
+        selected = role == "selected"
+        ordered = group.sort_values("as_of_date")
+        fig.add_trace(
+            go.Scatter(
+                x=ordered["as_of_date"],
+                y=ordered[metric],
+                mode="lines",
+                name=strategy_label(str(method)),
+                line={
+                    "color": _SELECTED if selected else _BASELINE,
+                    "width": 2.6 if selected else 1.7,
+                    "dash": "solid" if selected else "dot",
+                },
+                hovertemplate="%{y}<extra></extra>",
+            )
+        )
+
+    return _style_figure(
+        fig,
+        yaxis_title=title,
+        y_tickformat=tickformat,
+        height=330,
+    )
+
+
+def security_risk_map_figure(security_snapshot: pd.DataFrame) -> go.Figure:
+    ordered = security_snapshot.sort_values(
+        ["annualized_volatility", "weight"],
+        ascending=False,
+    ).copy()
+    ordered["marker_size"] = 12.0 + ordered["weight"].astype(float) * 220.0
+    ordered["display_label"] = ""
+    label_count = min(6, len(ordered))
+    ordered.loc[ordered.index[:label_count], "display_label"] = ordered.loc[
+        ordered.index[:label_count],
+        "ticker",
+    ]
+
+    fig = go.Figure(
+        go.Scatter(
+            x=ordered["beta_vs_spy"],
+            y=ordered["annualized_volatility"],
+            mode="markers+text",
+            text=ordered["display_label"],
+            textposition="top center",
+            marker={
+                "size": ordered["marker_size"],
+                "color": _SELECTED,
+                "opacity": 0.82,
+                "line": {"width": 1, "color": _BACKGROUND},
+            },
+            customdata=ordered[
+                [
+                    "ticker",
+                    "weight",
+                    "annualized_downside_volatility",
+                    "correlation_vs_spy",
+                    "average_dollar_volume",
+                ]
+            ],
+            hovertemplate=(
+                "%{customdata[0]}<br>"
+                "Weight %{customdata[1]:.2%}<br>"
+                "Volatility %{y:.1%}<br>"
+                "Downside vol %{customdata[2]:.1%}<br>"
+                "Beta %{x:.2f}<br>"
+                "SPY correlation %{customdata[3]:.2f}<br>"
+                "ADV $%{customdata[4]:,.0f}<extra></extra>"
+            ),
+        )
+    )
+    fig = _style_figure(
+        fig,
+        yaxis_title="Annualized volatility",
+        y_tickformat=".0%",
+        height=390,
+        show_legend=False,
+    )
+    fig.update_xaxes(title="Beta vs SPY")
+    return fig
+
+
+def covariance_diagnostics_figure(history: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=history["as_of_date"],
+            y=history["mean_pairwise_correlation"],
+            mode="lines",
+            name="Mean correlation",
+            line={"color": _SELECTED, "width": 2.4},
+            hovertemplate="%{y:.2f}<extra></extra>",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=history["as_of_date"],
+            y=history["shrinkage"],
+            mode="lines",
+            name="Shrinkage",
+            line={"color": _BASELINE, "width": 1.9, "dash": "dot"},
+            hovertemplate="%{y:.2f}<extra></extra>",
+        )
+    )
+    return _style_figure(
+        fig,
+        yaxis_title="Level",
+        y_tickformat=".2f",
+        height=320,
+    )
+
+
+def reference_risk_contribution_figure(
+    contributions: pd.DataFrame,
+    *,
+    top_n: int = 12,
+) -> go.Figure:
+    ordered = (
+        contributions.nlargest(top_n, "risk_contribution_share")
+        .sort_values("risk_contribution_share", ascending=True)
+        .copy()
+    )
+    ordered["label"] = ordered["risk_contribution_share"].map(lambda value: f"{value:.1%}")
+    maximum = float(ordered["risk_contribution_share"].max())
+
+    fig = go.Figure(
+        go.Bar(
+            x=ordered["risk_contribution_share"],
+            y=ordered["ticker"],
+            orientation="h",
+            marker={"color": _SELECTED},
+            text=ordered["label"],
+            textposition="outside",
+            cliponaxis=False,
+            customdata=ordered[
+                ["weight", "annualized_volatility", "beta_vs_spy", "liquidation_days"]
+            ],
+            hovertemplate=(
+                "%{y}<br>"
+                "Risk share %{x:.1%}<br>"
+                "Weight %{customdata[0]:.1%}<br>"
+                "Volatility %{customdata[1]:.1%}<br>"
+                "Beta %{customdata[2]:.2f}<br>"
+                "Liquidation %{customdata[3]:.3f} days<extra></extra>"
+            ),
+        )
+    )
+    fig = _style_figure(
+        fig,
+        yaxis_title=None,
+        y_tickformat=None,
+        height=390,
+        show_legend=False,
+        x_tickformat=".0%",
+    )
+    fig.update_xaxes(range=[0.0, maximum * 1.18 if maximum > 0.0 else 1.0])
+    return fig
+
+
+def risk_method_comparison_figure(comparison: pd.DataFrame) -> go.Figure:
+    short_labels = {
+        "score_weighted": "Score Weighted",
+        "top_n_equal_weight": "Top-N",
+        "median_mad_de": "Median-MAD",
+        "alpha_risk_turnover": "Alpha-Risk",
+        "cvar": "CVaR",
+    }
+    fig = go.Figure()
+
+    for role, group in comparison.groupby("role", sort=False):
+        selected = role == "selected"
+        labels = group["method"].map(
+            lambda method: short_labels.get(str(method), strategy_label(str(method)))
+        )
+        full_labels = group["method"].map(lambda method: strategy_label(str(method)))
+        customdata = pd.DataFrame(
+            {
+                "label": full_labels,
+                "effective_positions": group["effective_positions"],
+                "maximum_sector_weight": group["maximum_sector_weight"],
+                "maximum_liquidation_days": group["maximum_liquidation_days"],
+            }
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=group["portfolio_beta_vs_spy"],
+                y=group["predicted_volatility"],
+                mode="markers+text",
+                text=labels,
+                textposition="top center",
+                marker={
+                    "color": _SELECTED if selected else _METHOD_OTHER,
+                    "size": 16 if selected else 12,
+                    "line": {"width": 1, "color": _BACKGROUND},
+                },
+                customdata=customdata,
+                hovertemplate=(
+                    "%{customdata[0]}<br>"
+                    "Beta %{x:.2f}<br>"
+                    "Predicted vol %{y:.1%}<br>"
+                    "Effective positions %{customdata[1]:.1f}<br>"
+                    "Max sector %{customdata[2]:.1%}<br>"
+                    "Max liquidation %{customdata[3]:.3f} days<extra></extra>"
+                ),
+                showlegend=False,
+            )
+        )
+
+    fig = _style_figure(
+        fig,
+        yaxis_title="Predicted volatility",
+        y_tickformat=".1%",
+        height=360,
+        show_legend=False,
+    )
+    fig.update_xaxes(title="Beta vs SPY", tickformat=".2f")
+    return fig
