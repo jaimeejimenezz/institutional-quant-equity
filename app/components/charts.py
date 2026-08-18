@@ -237,3 +237,221 @@ def component_contribution_figure(
     fig.update_layout(barmode="stack", hovermode="y unified")
     fig.update_xaxes(title="Weighted component contribution")
     return fig
+
+
+_PORTFOLIO_PREVIOUS = "#AAB3BC"
+_PORTFOLIO_POSITIVE = "#2F6B5F"
+_PORTFOLIO_NEGATIVE = "#9A5A55"
+_METHOD_OTHER = "#AAB3BC"
+
+
+def portfolio_weight_change_figure(
+    snapshot: pd.DataFrame,
+    *,
+    top_n: int = 15,
+) -> go.Figure:
+    ordered = snapshot.copy()
+    ordered["weight_delta"] = ordered["weight"].astype(float) - ordered["previous_weight"].astype(
+        float
+    )
+    ordered["absolute_delta"] = ordered["weight_delta"].abs()
+    ordered = ordered.nlargest(top_n, "absolute_delta").sort_values("weight_delta")
+    colors = [
+        _PORTFOLIO_POSITIVE if value >= 0.0 else _PORTFOLIO_NEGATIVE
+        for value in ordered["weight_delta"]
+    ]
+    labels = ordered["weight_delta"].map(lambda value: f"{value:+.2%}")
+
+    fig = go.Figure(
+        go.Bar(
+            x=ordered["weight_delta"],
+            y=ordered["ticker"],
+            orientation="h",
+            marker={"color": colors},
+            text=labels,
+            textposition="outside",
+            cliponaxis=False,
+            customdata=ordered[["weight", "previous_weight", "sector"]],
+            hovertemplate=(
+                "%{customdata[2]}<br>"
+                "Current %{customdata[0]:.2%}<br>"
+                "Previous %{customdata[1]:.2%}<br>"
+                "Change %{x:+.2%}<extra></extra>"
+            ),
+        )
+    )
+    max_abs = float(ordered["weight_delta"].abs().max()) if not ordered.empty else 0.01
+    bound = max(max_abs * 1.30, 0.01)
+    fig = _style_figure(
+        fig,
+        yaxis_title=None,
+        y_tickformat=None,
+        height=420,
+        show_legend=False,
+        x_tickformat="+.0%",
+    )
+    fig.update_xaxes(range=[-bound, bound], zeroline=True, zerolinecolor=_GRID)
+    return fig
+
+
+def portfolio_sector_comparison_figure(exposure: pd.DataFrame) -> go.Figure:
+    ordered = exposure.sort_values("current_weight", ascending=True)
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=ordered["previous_weight"],
+            y=ordered["sector"],
+            orientation="h",
+            name="Previous",
+            marker={"color": _PORTFOLIO_PREVIOUS},
+            hovertemplate="Previous %{x:.1%}<extra></extra>",
+        )
+    )
+    fig.add_trace(
+        go.Bar(
+            x=ordered["current_weight"],
+            y=ordered["sector"],
+            orientation="h",
+            name="Current",
+            marker={"color": _SELECTED},
+            text=ordered["current_weight"].map(lambda value: f"{value:.1%}"),
+            textposition="outside",
+            cliponaxis=False,
+            hovertemplate="Current %{x:.1%}<extra></extra>",
+        )
+    )
+    maximum = float(ordered[["current_weight", "previous_weight"]].max().max())
+    fig = _style_figure(
+        fig,
+        yaxis_title=None,
+        y_tickformat=None,
+        height=420,
+        show_legend=True,
+        x_tickformat=".0%",
+    )
+    fig.update_layout(barmode="group", hovermode="y unified")
+    fig.update_xaxes(range=[0.0, maximum * 1.20 if maximum > 0.0 else 1.0])
+    return fig
+
+
+def turnover_history_figure(history: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    for (method, role), group in history.groupby(["method", "role"], sort=False):
+        color = _SELECTED if role == "selected" else _BASELINE
+        width = 2.5 if role == "selected" else 1.8
+        dash = "solid" if role == "selected" else "dot"
+        ordered = group.sort_values("as_of_date")
+        fig.add_trace(
+            go.Scatter(
+                x=ordered["as_of_date"],
+                y=ordered["one_way_turnover"],
+                mode="lines",
+                name=strategy_label(str(method)),
+                line={"color": color, "width": width, "dash": dash},
+                hovertemplate="%{y:.1%}<extra></extra>",
+            )
+        )
+    return _style_figure(
+        fig,
+        yaxis_title="One-way turnover",
+        y_tickformat=".0%",
+        height=340,
+    )
+
+
+def realized_drift_figure(positions: pd.DataFrame, *, top_n: int = 12) -> go.Figure:
+    ordered = positions.copy()
+    ordered["absolute_drift"] = ordered["weight_drift"].astype(float).abs()
+    ordered = ordered.nlargest(top_n, "absolute_drift").sort_values("weight_drift")
+    colors = [
+        _PORTFOLIO_POSITIVE if value >= 0.0 else _PORTFOLIO_NEGATIVE
+        for value in ordered["weight_drift"]
+    ]
+    fig = go.Figure(
+        go.Bar(
+            x=ordered["weight_drift"],
+            y=ordered["ticker"],
+            orientation="h",
+            marker={"color": colors},
+            text=ordered["weight_drift"].map(lambda value: f"{value:+.2%}"),
+            textposition="outside",
+            cliponaxis=False,
+            customdata=ordered[["actual_weight", "target_weight"]],
+            hovertemplate=(
+                "Actual %{customdata[0]:.2%}<br>"
+                "Target %{customdata[1]:.2%}<br>"
+                "Drift %{x:+.2%}<extra></extra>"
+            ),
+        )
+    )
+    max_abs = float(ordered["weight_drift"].abs().max()) if not ordered.empty else 0.01
+    bound = max(max_abs * 1.35, 0.005)
+    fig = _style_figure(
+        fig,
+        yaxis_title=None,
+        y_tickformat=None,
+        height=340,
+        show_legend=False,
+        x_tickformat="+.1%",
+    )
+    fig.update_xaxes(range=[-bound, bound], zeroline=True, zerolinecolor=_GRID)
+    return fig
+
+
+def portfolio_method_comparison_figure(comparison: pd.DataFrame) -> go.Figure:
+    short_labels = {
+        "score_weighted": "Score Weighted",
+        "top_n_equal_weight": "Top-N",
+        "median_mad_de": "Median-MAD",
+        "alpha_risk_turnover": "Alpha-Risk",
+        "cvar": "CVaR",
+    }
+
+    fig = go.Figure()
+    for role, group in comparison.groupby("role", sort=False):
+        selected = role == "selected"
+        labels = group["method"].map(
+            lambda method: short_labels.get(str(method), strategy_label(str(method)))
+        )
+        full_labels = group["method"].map(lambda method: strategy_label(str(method)))
+        customdata = pd.DataFrame(
+            {
+                "label": full_labels,
+                "effective_positions": group["effective_positions"],
+                "maximum_sector_weight": group["maximum_sector_weight"],
+            }
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=group["one_way_turnover"],
+                y=group["predicted_volatility"],
+                mode="markers+text",
+                text=labels,
+                textposition="top center",
+                name="Selected" if selected else "Other methods",
+                marker={
+                    "color": _SELECTED if selected else _METHOD_OTHER,
+                    "size": 16 if selected else 12,
+                    "line": {"width": 1, "color": _BACKGROUND},
+                },
+                customdata=customdata,
+                hovertemplate=(
+                    "%{customdata[0]}<br>"
+                    "Turnover %{x:.1%}<br>"
+                    "Predicted vol %{y:.1%}<br>"
+                    "Effective positions %{customdata[1]:.1f}<br>"
+                    "Max sector %{customdata[2]:.1%}<extra></extra>"
+                ),
+            )
+        )
+    fig = _style_figure(
+        fig,
+        yaxis_title="Predicted volatility",
+        y_tickformat=".1%",
+        height=360,
+        show_legend=False,
+        x_tickformat=".0%",
+    )
+    fig.update_xaxes(title="One-way turnover")
+    return fig

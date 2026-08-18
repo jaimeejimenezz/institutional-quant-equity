@@ -342,3 +342,242 @@ def parse_model_contributions(value: str) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+
+def portfolio_dates(
+    target_weights: pd.DataFrame,
+    strategy_name: str,
+) -> tuple[pd.Timestamp, ...]:
+    subset = target_weights.loc[target_weights["method"] == strategy_name, "as_of_date"]
+    values = pd.to_datetime(subset, errors="coerce").dropna().sort_values().unique()
+    return tuple(pd.Timestamp(value) for value in values)
+
+
+def portfolio_snapshot(
+    target_weights: pd.DataFrame,
+    strategy_name: str,
+    as_of_date: pd.Timestamp,
+) -> pd.DataFrame:
+    selected_date = pd.Timestamp(as_of_date).normalize()
+    method_rows = target_weights.loc[target_weights["method"] == strategy_name].copy()
+    method_rows["as_of_date"] = pd.to_datetime(method_rows["as_of_date"], errors="coerce")
+
+    current = method_rows.loc[method_rows["as_of_date"] == selected_date].copy()
+    if current.empty:
+        raise ValueError(
+            f"No target weights found for {strategy_name!r} on {selected_date.date()}."
+        )
+
+    current["weight"] = pd.to_numeric(current["weight"], errors="raise")
+    previous_dates = method_rows.loc[
+        method_rows["as_of_date"] < selected_date,
+        "as_of_date",
+    ].dropna()
+
+    if previous_dates.empty:
+        current["previous_weight"] = pd.to_numeric(
+            current["previous_weight"], errors="coerce"
+        ).fillna(0.0)
+        current["weight_delta"] = current["weight"] - current["previous_weight"]
+        return current.sort_values("weight", ascending=False).reset_index(drop=True)
+
+    previous_date = pd.Timestamp(previous_dates.max())
+    previous = method_rows.loc[
+        method_rows["as_of_date"] == previous_date,
+        ["ticker", "sector", "weight"],
+    ].copy()
+    previous["weight"] = pd.to_numeric(previous["weight"], errors="raise")
+    previous = previous.rename(
+        columns={
+            "sector": "previous_sector",
+            "weight": "previous_weight",
+        }
+    )
+
+    current = current.drop(columns=["previous_weight"], errors="ignore")
+    snapshot = current.merge(previous, on="ticker", how="outer")
+
+    snapshot["as_of_date"] = pd.to_datetime(snapshot["as_of_date"], errors="coerce").fillna(
+        selected_date
+    )
+    snapshot["method"] = snapshot["method"].fillna(strategy_name)
+    snapshot["sector"] = snapshot["sector"].combine_first(snapshot["previous_sector"])
+    snapshot["weight"] = pd.to_numeric(snapshot["weight"], errors="coerce").fillna(0.0)
+    snapshot["previous_weight"] = pd.to_numeric(
+        snapshot["previous_weight"], errors="coerce"
+    ).fillna(0.0)
+    snapshot["weight_delta"] = snapshot["weight"] - snapshot["previous_weight"]
+
+    snapshot = snapshot.drop(columns=["previous_sector"], errors="ignore")
+    return snapshot.sort_values(
+        ["weight", "previous_weight"],
+        ascending=False,
+    ).reset_index(drop=True)
+
+
+def enrich_portfolio_snapshot(
+    snapshot: pd.DataFrame,
+    security_risk: pd.DataFrame,
+) -> pd.DataFrame:
+    if snapshot.empty:
+        raise ValueError("Portfolio snapshot is empty.")
+
+    enriched = snapshot.copy()
+    enriched["as_of_date"] = pd.to_datetime(enriched["as_of_date"], errors="coerce")
+    selected_date = pd.Timestamp(enriched["as_of_date"].dropna().iloc[0])
+
+    risk = security_risk.copy()
+    risk["as_of_date"] = pd.to_datetime(risk["as_of_date"], errors="coerce")
+    risk = risk.loc[
+        risk["as_of_date"] == selected_date,
+        ["ticker", "beta_vs_spy", "average_dollar_volume"],
+    ].copy()
+    risk = risk.rename(
+        columns={
+            "beta_vs_spy": "risk_beta_vs_spy",
+            "average_dollar_volume": "risk_average_dollar_volume",
+        }
+    )
+
+    enriched = enriched.merge(risk, on="ticker", how="left", validate="one_to_one")
+
+    beta = pd.to_numeric(enriched["beta_vs_spy"], errors="coerce")
+    risk_beta = pd.to_numeric(enriched["risk_beta_vs_spy"], errors="coerce")
+    enriched["beta_vs_spy"] = beta.combine_first(risk_beta)
+
+    adv = pd.to_numeric(enriched["average_dollar_volume"], errors="coerce")
+    risk_adv = pd.to_numeric(
+        enriched["risk_average_dollar_volume"],
+        errors="coerce",
+    )
+    enriched["average_dollar_volume"] = adv.combine_first(risk_adv)
+
+    return enriched.drop(columns=["risk_beta_vs_spy", "risk_average_dollar_volume"])
+
+
+def portfolio_sector_changes(snapshot: pd.DataFrame) -> pd.DataFrame:
+    if snapshot.empty:
+        raise ValueError("Portfolio snapshot is empty.")
+    current = snapshot.groupby("sector", as_index=False)["weight"].sum()
+    current = current.rename(columns={"weight": "current_weight"})
+    previous = snapshot.groupby("sector", as_index=False)["previous_weight"].sum()
+    previous = previous.rename(columns={"previous_weight": "previous_weight"})
+    exposure = current.merge(previous, on="sector", how="outer").fillna(0.0)
+    exposure["weight_delta"] = exposure["current_weight"] - exposure["previous_weight"]
+    return exposure.sort_values("current_weight", ascending=False).reset_index(drop=True)
+
+
+def portfolio_diagnostics_row(
+    diagnostics: pd.DataFrame,
+    strategy_name: str,
+    as_of_date: pd.Timestamp,
+) -> pd.Series:
+    return _dated_method_row(diagnostics, strategy_name, as_of_date)
+
+
+def portfolio_risk_row(
+    risk_summary: pd.DataFrame,
+    strategy_name: str,
+    as_of_date: pd.Timestamp,
+) -> pd.Series:
+    return _dated_method_row(risk_summary, strategy_name, as_of_date)
+
+
+def realized_positions_for_signal(
+    positions: pd.DataFrame,
+    strategy_name: str,
+    signal_date: pd.Timestamp,
+) -> pd.DataFrame:
+    selected_signal = pd.Timestamp(signal_date).normalize()
+    subset = positions.loc[positions["strategy_name"] == strategy_name].copy()
+    subset["date"] = pd.to_datetime(subset["date"], errors="coerce")
+    subset["active_signal_date"] = pd.to_datetime(subset["active_signal_date"], errors="coerce")
+    subset = subset.loc[subset["active_signal_date"] == selected_signal].copy()
+    if subset.empty:
+        raise ValueError(f"No realized positions found for signal date {selected_signal.date()}.")
+
+    latest_date = subset["date"].max()
+    snapshot = subset.loc[subset["date"] == latest_date].copy()
+    snapshot = snapshot.loc[snapshot["actual_weight"].astype(float) > 1e-10]
+    if snapshot.empty:
+        raise ValueError("Realized position snapshot contains no positive holdings.")
+    return snapshot.sort_values("actual_weight", ascending=False).reset_index(drop=True)
+
+
+def turnover_history(
+    diagnostics: pd.DataFrame,
+    strategy_name: str,
+    *,
+    baseline_strategy: str = "top_n_equal_weight",
+) -> pd.DataFrame:
+    methods = [strategy_name]
+    if strategy_name != baseline_strategy:
+        methods.append(baseline_strategy)
+
+    subset = diagnostics.loc[diagnostics["method"].isin(methods)].copy()
+    subset["as_of_date"] = pd.to_datetime(subset["as_of_date"], errors="coerce")
+    subset = subset.dropna(subset=["as_of_date", "one_way_turnover"])
+    subset["role"] = np.where(
+        subset["method"] == strategy_name,
+        "selected",
+        "baseline",
+    )
+    return subset.sort_values(["method", "as_of_date"]).reset_index(drop=True)
+
+
+def portfolio_method_comparison(
+    diagnostics: pd.DataFrame,
+    risk_summary: pd.DataFrame,
+    strategy_name: str,
+    as_of_date: pd.Timestamp,
+) -> pd.DataFrame:
+    selected_date = pd.Timestamp(as_of_date).normalize()
+
+    diagnostics_copy = diagnostics.copy()
+    diagnostics_copy["as_of_date"] = pd.to_datetime(diagnostics_copy["as_of_date"], errors="coerce")
+    diagnostics_copy = diagnostics_copy.loc[diagnostics_copy["as_of_date"] == selected_date]
+
+    risk_copy = risk_summary.copy()
+    risk_copy["as_of_date"] = pd.to_datetime(risk_copy["as_of_date"], errors="coerce")
+    risk_copy = risk_copy.loc[risk_copy["as_of_date"] == selected_date]
+
+    columns = [
+        "as_of_date",
+        "method",
+        "predicted_volatility",
+        "portfolio_beta_vs_spy",
+        "maximum_liquidation_days",
+    ]
+    comparison = diagnostics_copy.merge(
+        risk_copy[columns],
+        on=["as_of_date", "method"],
+        how="inner",
+        validate="one_to_one",
+    )
+    if comparison.empty:
+        raise ValueError(f"No method comparison found for {selected_date.date()}.")
+
+    comparison["role"] = np.where(
+        comparison["method"] == strategy_name,
+        "selected",
+        "other",
+    )
+    comparison["label"] = comparison["method"].map(lambda method: method.replace("_", " ").title())
+    return comparison.sort_values(["role", "method"], ascending=[False, True])
+
+
+def _dated_method_row(
+    frame: pd.DataFrame,
+    strategy_name: str,
+    as_of_date: pd.Timestamp,
+) -> pd.Series:
+    selected_date = pd.Timestamp(as_of_date).normalize()
+    subset = frame.loc[frame["method"] == strategy_name].copy()
+    subset["as_of_date"] = pd.to_datetime(subset["as_of_date"], errors="coerce")
+    subset = subset.loc[subset["as_of_date"] == selected_date]
+    if len(subset) != 1:
+        raise ValueError(
+            f"Expected one row for {strategy_name!r} on {selected_date.date()}, "
+            f"found {len(subset)}."
+        )
+    return subset.iloc[0].copy()
