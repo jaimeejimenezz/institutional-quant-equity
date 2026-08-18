@@ -166,16 +166,19 @@ portfolio_construction:
 
   top_n: 20
   score_weighted_candidate_count: 25
+  candidate_count: 25
+  equal_weight_positions: 25
 
   max_weight: 0.05
+  max_security_weight: 0.05
   max_sector_weight: 0.25
 
+  minimum_positions: 20
   minimum_cross_section_size: 30
   weight_tolerance: 1.0e-8
 
   optimization_tolerance: 1.0e-10
   optimization_max_iterations: 2000
-
 mvp_backtest:
   initial_capital: 1000000.0
   transaction_cost_bps: 10.0
@@ -305,14 +308,6 @@ portfolio_risk:
   reference_top_n: 20
   max_daily_adv_participation: 0.10
   weight_sum_tolerance: 0.00000001
-
-portfolio_construction:
-  candidate_count: 25
-  equal_weight_positions: 25
-  max_security_weight: 0.05
-  max_sector_weight: 0.25
-  minimum_positions: 20
-  weight_tolerance: 0.00000001
 
 portfolio_optimizer:
   candidate_count: 25
