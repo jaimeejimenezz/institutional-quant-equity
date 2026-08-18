@@ -1,0 +1,10 @@
+check,status,violations,description
+expected_feature_count,PASS,0,no_fundamentals must use exactly 19 predictors.
+expected_composite_components,PASS,0,The technical composite must use the frozen surviving component set.
+expected_models,PASS,0,"Ablation ensemble predictions must contain technical composite, Elastic Net and LightGBM Ranker."
+composite_oos_rows,PASS,0,Technical composite must contain 3850 OOS predictions.
+elastic_net_oos_rows,PASS,0,Elastic Net must contain 3850 OOS predictions.
+lightgbm_ranker_oos_rows,PASS,0,LightGBM Ranker must contain 3850 OOS predictions.
+oos_dates_match_folds,PASS,0,Prediction dates must match the frozen walk-forward test dates exactly.
+unique_prediction_keys,PASS,0,"Predictions must be unique by fold, ticker and model."
+finite_predictions,PASS,0,All stored OOS predictions must be finite.

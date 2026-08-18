@@ -1,0 +1,4 @@
+scenario,status,key_differences_vs_full
+full,PASS,0
+no_fundamentals,PASS,0
+no_momentum,PASS,0

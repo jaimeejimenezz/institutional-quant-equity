@@ -1,0 +1,179 @@
+Institutional Quant Equity Research Platform
+Feature-ablation training interface audit
+================================================
+
+Module: quant_equity.models.regularized_linear
+  file: C:\Users\Usuario\Documents\PROYECTO_FINTECH\institutional-quant-equity\src\quant_equity\models\regularized_linear.py
+  relevant local members:
+    - class FittedFeaturePreprocessor(feature_columns: 'tuple[str, ...]', continuous_columns: 'tuple[str, ...]', indicator_columns: 'tuple[str, ...]', medians: 'pd.Series', means: 'pd.Series', scales: 'pd.Series') -> None
+    dataclass fields:
+      - feature_columns: default=<required>
+      - continuous_columns: default=<required>
+      - indicator_columns: default=<required>
+      - medians: default=<required>
+      - means: default=<required>
+      - scales: default=<required>
+    - class RegularizedLinearConfig(expected_feature_count: 'int' = 91, ridge_alphas: 'tuple[float, ...]' = (0.1, 1.0, 10.0, 100.0), elastic_net_alphas: 'tuple[float, ...]' = (0.0001, 0.001, 0.01), elastic_net_l1_ratios: 'tuple[float, ...]' = (0.1, 0.5, 0.9), minimum_validation_dates: 'int' = 12, elastic_net_max_iter: 'int' = 50000) -> None
+    dataclass fields:
+      - expected_feature_count: default=91
+      - ridge_alphas: default=(0.1, 1.0, 10.0, 100.0)
+      - elastic_net_alphas: default=(0.0001, 0.001, 0.01)
+      - elastic_net_l1_ratios: default=(0.1, 0.5, 0.9)
+      - minimum_validation_dates: default=12
+      - elastic_net_max_iter: default=50000
+    - class RegularizedLinearOutputs(predictions: 'pd.DataFrame', hyperparameter_search: 'pd.DataFrame', coefficients: 'pd.DataFrame', feature_columns: 'tuple[str, ...]') -> None
+    dataclass fields:
+      - predictions: default=<required>
+      - hyperparameter_search: default=<required>
+      - coefficients: default=<required>
+      - feature_columns: default=<required>
+    - function fit_feature_preprocessor(train: 'pd.DataFrame', feature_columns: 'Sequence[str]') -> 'FittedFeaturePreprocessor'
+    - function train_regularized_linear_models(panel: 'pd.DataFrame', fold_metadata: 'pd.DataFrame', *, config: 'RegularizedLinearConfig | None' = None) -> 'RegularizedLinearOutputs'
+
+Module: quant_equity.models.lightgbm_ranker
+  status: NOT FOUND
+
+Module: quant_equity.models.lightgbm_ranking
+  file: C:\Users\Usuario\Documents\PROYECTO_FINTECH\institutional-quant-equity\src\quant_equity\models\lightgbm_ranking.py
+  relevant local members:
+    - class LightGBMRankingConfig(expected_feature_count: 'int' = 91, relevance_levels: 'int' = 5, ndcg_cutoff: 'int' = 10, lambdarank_truncation_level: 'int' = 13, max_estimators: 'int' = 1000, early_stopping_rounds: 'int' = 50, minimum_validation_dates: 'int' = 12, random_state: 'int' = 42, n_jobs: 'int' = -1, candidates: 'tuple[LightGBMCandidate, ...]' = (LightGBMCandidate(candidate_name='shallow', num_leaves=7, max_depth=3, min_child_samples=80, learning_rate=0.03, reg_alpha=0.0, reg_lambda=1.0, colsample_bytree=0.8, subsample=0.9), LightGBMCandidate(candidate_name='balanced', num_leaves=15, max_depth=4, min_child_samples=60, learning_rate=0.03, reg_alpha=0.0, reg_lambda=1.0, colsample_bytree=0.8, subsample=0.9), LightGBMCandidate(candidate_name='flexible', num_leaves=31, max_depth=5, min_child_samples=40, learning_rate=0.03, reg_alpha=0.0, reg_lambda=1.0, colsample_bytree=0.8, subsample=0.9), LightGBMCandidate(candidate_name='regularized', num_leaves=15, max_depth=4, min_child_samples=40, learning_rate=0.03, reg_alpha=0.1, reg_lambda=5.0, colsample_bytree=0.7, subsample=0.9))) -> None
+    dataclass fields:
+      - expected_feature_count: default=91
+      - relevance_levels: default=5
+      - ndcg_cutoff: default=10
+      - lambdarank_truncation_level: default=13
+      - max_estimators: default=1000
+      - early_stopping_rounds: default=50
+      - minimum_validation_dates: default=12
+      - random_state: default=42
+      - n_jobs: default=-1
+      - candidates: default=(LightGBMCandidate(candidate_name='shallow', num_leaves=7, max_depth=3, min_child_samples=80, learning_rate=0.03, reg_alpha=0.0, reg_lambda=1.0, colsample_bytree=0.8, subsample=0.9), LightGBMCandidate(candidate_name='balanced', num_leaves=15, max_depth=4, min_child_samples=60, learning_rate=0.03, reg_alpha=0.0, reg_lambda=1.0, colsample_bytree=0.8, subsample=0.9), LightGBMCandidate(candidate_name='flexible', num_leaves=31, max_depth=5, min_child_samples=40, learning_rate=0.03, reg_alpha=0.0, reg_lambda=1.0, colsample_bytree=0.8, subsample=0.9), LightGBMCandidate(candidate_name='regularized', num_leaves=15, max_depth=4, min_child_samples=40, learning_rate=0.03, reg_alpha=0.1, reg_lambda=5.0, colsample_bytree=0.7, subsample=0.9))
+    - class LightGBMRankingOutputs(predictions: 'pd.DataFrame', hyperparameter_search: 'pd.DataFrame', feature_importance: 'pd.DataFrame', feature_columns: 'tuple[str, ...]') -> None
+    dataclass fields:
+      - predictions: default=<required>
+      - hyperparameter_search: default=<required>
+      - feature_importance: default=<required>
+      - feature_columns: default=<required>
+    - function train_lightgbm_ranking(panel: 'pd.DataFrame', fold_metadata: 'pd.DataFrame', *, config: 'LightGBMRankingConfig | None' = None) -> 'LightGBMRankingOutputs'
+
+Module: quant_equity.models.model_baselines
+  file: C:\Users\Usuario\Documents\PROYECTO_FINTECH\institutional-quant-equity\src\quant_equity\models\model_baselines.py
+  relevant local members:
+    - function generate_baseline_predictions(panel: 'pd.DataFrame', fold_metadata: 'pd.DataFrame', *, minimum_composite_components: 'int' = 6) -> 'pd.DataFrame'
+    - function score_technical_composite(test: 'pd.DataFrame', *, minimum_components: 'int' = 6) -> 'pd.Series'
+
+Module: quant_equity.models
+  file: C:\Users\Usuario\Documents\PROYECTO_FINTECH\institutional-quant-equity\src\quant_equity\models\__init__.py
+  relevant local members:
+    - none
+
+Source for quant_equity.models.model_baselines.score_technical_composite:
+def score_technical_composite(
+    test: pd.DataFrame,
+    *,
+    minimum_components: int = 6,
+) -> pd.Series:
+    """Build the frozen equal-weight technical composite."""
+    if not 1 <= minimum_components <= len(
+        COMPOSITE_FEATURE_DIRECTIONS
+    ):
+        raise ModelBaselineError(
+            "minimum_components must be between "
+            "1 and the number of composite features."
+        )
+
+    columns = tuple(
+        COMPOSITE_FEATURE_DIRECTIONS
+    )
+
+    _require_columns(
+        test,
+        columns,
+        dataset_name="test cross-section",
+    )
+
+    values = (
+        test.loc[:, columns]
+        .apply(
+            pd.to_numeric,
+            errors="coerce",
+        )
+        .astype(float)
+    )
+
+    directions = pd.Series(
+        COMPOSITE_FEATURE_DIRECTIONS,
+        dtype=float,
+    )
+
+    signed = values.mul(
+        directions,
+        axis="columns",
+    )
+
+    available_components = (
+        signed.notna().sum(
+            axis=1
+        )
+    )
+
+    score = signed.mean(
+        axis=1,
+        skipna=True,
+    )
+
+    return score.where(
+        available_components
+        >= minimum_components
+    )
+
+Training scripts discovered
+---------------------------
+Script: C:\Users\Usuario\Documents\PROYECTO_FINTECH\institutional-quant-equity\scripts\train_lightgbm_ranking.py
+  quant_equity imports:
+    - quant_equity.config: PROJECT_ROOT, REPORTS_DIR
+    - quant_equity.logging_config: configure_logging
+    - quant_equity.models: LightGBMRankingConfig, evaluate_model_predictions, summarize_lightgbm_ranking_importance, train_lightgbm_ranking
+  relevant calls:
+    - train_lightgbm_ranking | keyword args: config
+    - evaluate_model_predictions
+
+Script: C:\Users\Usuario\Documents\PROYECTO_FINTECH\institutional-quant-equity\scripts\train_regularized_linear_models.py
+  quant_equity imports:
+    - quant_equity.config: PROJECT_ROOT, REPORTS_DIR
+    - quant_equity.logging_config: configure_logging
+    - quant_equity.models: RegularizedLinearConfig, evaluate_model_predictions, summarize_linear_coefficients, train_regularized_linear_models
+  relevant calls:
+    - train_regularized_linear_models | keyword args: config
+    - evaluate_model_predictions
+
+Relevant quant_equity.models exports
+-----------------------------------
+- COMPOSITE_FEATURE_DIRECTIONS
+- FittedFeaturePreprocessor(feature_columns: 'tuple[str, ...]', continuous_columns: 'tuple[str, ...]', indicator_columns: 'tuple[str, ...]', medians: 'pd.Series', means: 'pd.Series', scales: 'pd.Series') -> None
+- LightGBMRankingConfig(expected_feature_count: 'int' = 91, relevance_levels: 'int' = 5, ndcg_cutoff: 'int' = 10, lambdarank_truncation_level: 'int' = 13, max_estimators: 'int' = 1000, early_stopping_rounds: 'int' = 50, minimum_validation_dates: 'int' = 12, random_state: 'int' = 42, n_jobs: 'int' = -1, candidates: 'tuple[LightGBMCandidate, ...]' = (LightGBMCandidate(candidate_name='shallow', num_leaves=7, max_depth=3, min_child_samples=80, learning_rate=0.03, reg_alpha=0.0, reg_lambda=1.0, colsample_bytree=0.8, subsample=0.9), LightGBMCandidate(candidate_name='balanced', num_leaves=15, max_depth=4, min_child_samples=60, learning_rate=0.03, reg_alpha=0.0, reg_lambda=1.0, colsample_bytree=0.8, subsample=0.9), LightGBMCandidate(candidate_name='flexible', num_leaves=31, max_depth=5, min_child_samples=40, learning_rate=0.03, reg_alpha=0.0, reg_lambda=1.0, colsample_bytree=0.8, subsample=0.9), LightGBMCandidate(candidate_name='regularized', num_leaves=15, max_depth=4, min_child_samples=40, learning_rate=0.03, reg_alpha=0.1, reg_lambda=5.0, colsample_bytree=0.7, subsample=0.9))) -> None
+- LightGBMRankingError<signature unavailable>
+- LightGBMRankingOutputs(predictions: 'pd.DataFrame', hyperparameter_search: 'pd.DataFrame', feature_importance: 'pd.DataFrame', feature_columns: 'tuple[str, ...]') -> None
+- RegularizedLinearConfig(expected_feature_count: 'int' = 91, ridge_alphas: 'tuple[float, ...]' = (0.1, 1.0, 10.0, 100.0), elastic_net_alphas: 'tuple[float, ...]' = (0.0001, 0.001, 0.01), elastic_net_l1_ratios: 'tuple[float, ...]' = (0.1, 0.5, 0.9), minimum_validation_dates: 'int' = 12, elastic_net_max_iter: 'int' = 50000) -> None
+- RegularizedLinearError<signature unavailable>
+- RegularizedLinearOutputs(predictions: 'pd.DataFrame', hyperparameter_search: 'pd.DataFrame', coefficients: 'pd.DataFrame', feature_columns: 'tuple[str, ...]') -> None
+- TECHNICAL_COMPOSITE_DIRECTIONS
+- fit_feature_preprocessor(train: 'pd.DataFrame', feature_columns: 'Sequence[str]') -> 'FittedFeaturePreprocessor'
+- lightgbm_ranking
+- regularized_linear
+- score_technical_composite(test: 'pd.DataFrame', *, minimum_components: 'int' = 6) -> 'pd.Series'
+- summarize_lightgbm_ranking_importance(feature_importance: 'pd.DataFrame') -> 'pd.DataFrame'
+- train_lightgbm_ranking(panel: 'pd.DataFrame', fold_metadata: 'pd.DataFrame', *, config: 'LightGBMRankingConfig | None' = None) -> 'LightGBMRankingOutputs'
+- train_lightgbm_regression(panel: 'pd.DataFrame', fold_metadata: 'pd.DataFrame', *, config: 'LightGBMRegressionConfig | None' = None) -> 'LightGBMRegressionOutputs'
+- train_regularized_linear_models(panel: 'pd.DataFrame', fold_metadata: 'pd.DataFrame', *, config: 'RegularizedLinearConfig | None' = None) -> 'RegularizedLinearOutputs'
+
+Audit checks
+------------
+regularized_linear_module: PASS
+ranking_module: PASS
+model_baselines_module: PASS
+technical_composite_callable: PASS
+training_scripts_found: PASS
+
+readiness_checks: 5
+failed_readiness_checks: 0

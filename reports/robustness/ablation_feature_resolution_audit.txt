@@ -1,0 +1,1304 @@
+Institutional Quant Equity Research Platform
+Ablation feature-resolution audit
+========================================================================
+
+quant_equity.models.regularized_linear.train_regularized_linear_models
+------------------------------------------------------------------------
+status: FOUND
+signature: (panel: 'pd.DataFrame', fold_metadata: 'pd.DataFrame', *, config: 'RegularizedLinearConfig | None' = None) -> 'RegularizedLinearOutputs'
+
+source:
+def train_regularized_linear_models(
+    panel: pd.DataFrame,
+    fold_metadata: pd.DataFrame,
+    *,
+    config: RegularizedLinearConfig | None = None,
+) -> RegularizedLinearOutputs:
+    """Train Ridge and Elastic Net across frozen walk-forward folds."""
+    if config is None:
+        config = (
+            RegularizedLinearConfig()
+        )
+
+    config.validate()
+
+    required_panel_columns = (
+        "as_of_date",
+        "ticker",
+        "sector",
+        "target_end_date",
+        TARGET_COLUMN,
+        TOP_LABEL_COLUMN,
+    )
+
+    required_fold_columns = (
+        "fold_id",
+        "test_date",
+        "train_start_date",
+        "train_end_date",
+        "validation_start_date",
+        "validation_end_date",
+        "test_rows",
+    )
+
+    _require_columns(
+        panel,
+        required_panel_columns,
+        dataset_name="modeling panel",
+    )
+
+    _require_columns(
+        fold_metadata,
+        required_fold_columns,
+        dataset_name="walk-forward metadata",
+    )
+
+    panel = panel.copy()
+    folds = fold_metadata.copy()
+
+    panel[
+        "target_end_date"
+    ] = pd.to_datetime(
+        panel[
+            "target_end_date"
+        ],
+        errors="coerce",
+    ).dt.normalize()
+
+    for column in (
+        "test_date",
+        "train_start_date",
+        "train_end_date",
+        "validation_start_date",
+        "validation_end_date",
+    ):
+        folds[
+            column
+        ] = pd.to_datetime(
+            folds[
+                column
+            ]
+        ).dt.normalize()
+
+    feature_columns = (
+        detect_model_features(
+            panel,
+            expected_count=(
+                config.expected_feature_count
+            ),
+        )
+    )
+
+    prediction_frames: list[
+        pd.DataFrame
+    ] = []
+
+    search_rows: list[
+        dict[str, Any]
+    ] = []
+
+    coefficient_rows: list[
+        dict[str, Any]
+    ] = []
+
+    for fold in (
+        folds.sort_values(
+            "test_date"
+        )
+        .itertuples(
+            index=False
+        )
+    ):
+        (
+            train,
+            validation,
+            test,
+            latest_fit_target_end,
+        ) = _prepare_fold_data(
+            panel,
+            fold,
+            config=config,
+        )
+
+        preprocessor = (
+            fit_feature_preprocessor(
+                train,
+                feature_columns,
+            )
+        )
+
+        x_train = (
+            preprocessor.transform(
+                train
+            )
+        )
+
+        x_validation = (
+            preprocessor.transform(
+                validation
+            )
+        )
+
+        x_test = (
+            preprocessor.transform(
+                test
+            )
+        )
+
+        y_train = _numeric_target(
+            train
+        )
+
+        y_validation = _numeric_target(
+            validation
+        )
+
+        ridge_alpha, ridge_search = (
+            _select_ridge_alpha(
+                x_train,
+                y_train,
+                x_validation,
+                y_validation,
+                validation[
+                    "as_of_date"
+                ],
+                config=config,
+                fold_id=str(
+                    fold.fold_id
+                ),
+                test_date=pd.Timestamp(
+                    fold.test_date
+                ),
+            )
+        )
+
+        (
+            elastic_alpha,
+            elastic_l1_ratio,
+            elastic_search,
+        ) = (
+            _select_elastic_net_parameters(
+                x_train,
+                y_train,
+                x_validation,
+                y_validation,
+                validation[
+                    "as_of_date"
+                ],
+                config=config,
+                fold_id=str(
+                    fold.fold_id
+                ),
+                test_date=pd.Timestamp(
+                    fold.test_date
+                ),
+            )
+        )
+
+        search_rows.extend(
+            ridge_search
+        )
+
+        search_rows.extend(
+            elastic_search
+        )
+
+        x_fit = pd.concat(
+            [
+                x_train,
+                x_validation,
+            ],
+            ignore_index=True,
+        )
+
+        y_fit = pd.concat(
+            [
+                y_train,
+                y_validation,
+            ],
+            ignore_index=True,
+        )
+
+        fitted_models = {
+            "ridge": (
+                _fit_ridge(
+                    x_fit,
+                    y_fit,
+                    alpha=ridge_alpha,
+                ),
+                ridge_alpha,
+                np.nan,
+            ),
+            "elastic_net": (
+                _fit_elastic_net(
+                    x_fit,
+                    y_fit,
+                    alpha=elastic_alpha,
+                    l1_ratio=(
+                        elastic_l1_ratio
+                    ),
+                    max_iter=(
+                        config.elastic_net_max_iter
+                    ),
+                ),
+                elastic_alpha,
+                elastic_l1_ratio,
+            ),
+        }
+
+        for (
+            model_name,
+            (
+                model,
+                selected_alpha,
+                selected_l1_ratio,
+            ),
+        ) in fitted_models.items():
+            prediction = model.predict(
+                x_test
+            )
+
+            block = test.loc[
+                :,
+                [
+                    "as_of_date",
+                    "ticker",
+                    "sector",
+                    TARGET_COLUMN,
+                    TOP_LABEL_COLUMN,
+                ],
+            ].copy()
+
+            block.insert(
+                0,
+                "fold_id",
+                str(
+                    fold.fold_id
+                ),
+            )
+
+            block[
+                "model_name"
+            ] = model_name
+
+            block[
+                "prediction"
+            ] = prediction.astype(
+                float
+            )
+
+            block[
+                "latest_fit_target_end_date"
+            ] = latest_fit_target_end
+
+            block[
+                "selected_alpha"
+            ] = selected_alpha
+
+            block[
+                "selected_l1_ratio"
+            ] = selected_l1_ratio
+
+            prediction_frames.append(
+                block
+            )
+
+            coefficients = np.asarray(
+                model.coef_,
+                dtype=float,
+            )
+
+            for (
+                feature,
+                coefficient,
+            ) in zip(
+                feature_columns,
+                coefficients,
+                strict=True,
+            ):
+                coefficient_rows.append(
+                    {
+                        "fold_id": str(
+                            fold.fold_id
+                        ),
+                        "test_date": pd.Timestamp(
+                            fold.test_date
+                        ),
+                        "model_name": (
+                            model_name
+                        ),
+                        "feature": feature,
+                        "coefficient_standardized": (
+                            float(
+                                coefficient
+                            )
+                        ),
+                        "absolute_coefficient": (
+                            float(
+                                abs(
+                                    coefficient
+                                )
+                            )
+                        ),
+                        "nonzero_coefficient": (
+                            bool(
+                                abs(
+                                    coefficient
+                                )
+                                > 1e-12
+                            )
+                        ),
+                        "selected_alpha": (
+                            selected_alpha
+                        ),
+                        "selected_l1_ratio": (
+                            selected_l1_ratio
+                        ),
+                    }
+                )
+
+    if not prediction_frames:
+        raise RegularizedLinearError(
+            "No linear-model predictions were generated."
+        )
+
+    predictions = pd.concat(
+        prediction_frames,
+        ignore_index=True,
+    )
+
+    duplicate_predictions = int(
+        predictions.duplicated(
+            [
+                "fold_id",
+                "ticker",
+                "model_name",
+            ]
+        ).sum()
+    )
+
+    if duplicate_predictions:
+        raise RegularizedLinearError(
+            "Generated predictions contain duplicate keys."
+        )
+
+    predictions = predictions.sort_values(
+        [
+            "as_of_date",
+            "model_name",
+            "ticker",
+        ]
+    ).reset_index(
+        drop=True
+    )
+
+    hyperparameter_search = (
+        pd.DataFrame(
+            search_rows
+        )
+        .sort_values(
+            [
+                "test_date",
+                "model_name",
+                "alpha",
+                "l1_ratio",
+            ],
+            na_position="first",
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    coefficients = (
+        pd.DataFrame(
+            coefficient_rows
+        )
+        .sort_values(
+            [
+                "test_date",
+                "model_name",
+                "feature",
+            ]
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    return RegularizedLinearOutputs(
+        predictions=predictions,
+        hyperparameter_search=(
+            hyperparameter_search
+        ),
+        coefficients=coefficients,
+        feature_columns=feature_columns,
+    )
+
+referenced feature/global names:
+  - TARGET_COLUMN
+      type: str
+      value: 'target_21d_excess'
+  - TOP_LABEL_COLUMN
+      type: str
+      value: 'label_top_quintile'
+  - _require_columns
+      type: function
+      value: <function _require_columns at 0x000001417537F1A0>
+  - column
+      module value: not defined locally
+  - detect_model_features
+      type: function
+      value: <function detect_model_features at 0x00000141753A40E0>
+  - feature
+      module value: not defined locally
+  - feature_columns
+      module value: not defined locally
+  - fit_feature_preprocessor
+      type: function
+      value: <function fit_feature_preprocessor at 0x00000141753A42C0>
+  - required_fold_columns
+      module value: not defined locally
+  - required_panel_columns
+      module value: not defined locally
+
+quant_equity.models.lightgbm_ranking.train_lightgbm_ranking
+------------------------------------------------------------------------
+status: FOUND
+signature: (panel: 'pd.DataFrame', fold_metadata: 'pd.DataFrame', *, config: 'LightGBMRankingConfig | None' = None) -> 'LightGBMRankingOutputs'
+
+source:
+def train_lightgbm_ranking(
+    panel: pd.DataFrame,
+    fold_metadata: pd.DataFrame,
+    *,
+    config: LightGBMRankingConfig | None = None,
+) -> LightGBMRankingOutputs:
+    """Train a selected learning-to-rank model for every OOS month."""
+    if config is None:
+        config = (
+            LightGBMRankingConfig()
+        )
+
+    config.validate()
+
+    _require_columns(
+        panel,
+        (
+            "as_of_date",
+            "ticker",
+            "sector",
+            "target_end_date",
+            TARGET_COLUMN,
+            TOP_LABEL_COLUMN,
+        ),
+        dataset_name="modeling panel",
+    )
+
+    _require_columns(
+        fold_metadata,
+        (
+            "fold_id",
+            "test_date",
+            "train_start_date",
+            "train_end_date",
+            "validation_start_date",
+            "validation_end_date",
+            "test_rows",
+        ),
+        dataset_name="walk-forward metadata",
+    )
+
+    panel = panel.copy()
+    folds = fold_metadata.copy()
+
+    panel[
+        "as_of_date"
+    ] = pd.to_datetime(
+        panel[
+            "as_of_date"
+        ]
+    ).dt.normalize()
+
+    panel[
+        "target_end_date"
+    ] = pd.to_datetime(
+        panel[
+            "target_end_date"
+        ],
+        errors="coerce",
+    ).dt.normalize()
+
+    for column in (
+        "test_date",
+        "train_start_date",
+        "train_end_date",
+        "validation_start_date",
+        "validation_end_date",
+    ):
+        folds[column] = pd.to_datetime(
+            folds[column]
+        ).dt.normalize()
+
+    feature_columns = (
+        detect_model_features(
+            panel,
+            expected_count=(
+                config.expected_feature_count
+            ),
+        )
+    )
+
+    prediction_frames = []
+    search_rows = []
+    importance_rows = []
+
+    for fold in (
+        folds.sort_values(
+            "test_date"
+        )
+        .itertuples(
+            index=False
+        )
+    ):
+        (
+            train,
+            validation,
+            test,
+            latest_fit_target_end,
+        ) = _prepare_fold_data(
+            panel,
+            fold,
+            minimum_validation_dates=(
+                config.minimum_validation_dates
+            ),
+        )
+
+        preprocessor = (
+            fit_feature_preprocessor(
+                train,
+                feature_columns,
+            )
+        )
+
+        x_train = (
+            preprocessor.transform(
+                train
+            )
+        )
+
+        x_validation = (
+            preprocessor.transform(
+                validation
+            )
+        )
+
+        x_test = (
+            preprocessor.transform(
+                test
+            )
+        )
+
+        y_train = (
+            build_relevance_labels(
+                train,
+                levels=(
+                    config.relevance_levels
+                ),
+            )
+        )
+
+        y_validation = (
+            build_relevance_labels(
+                validation,
+                levels=(
+                    config.relevance_levels
+                ),
+            )
+        )
+
+        train_group = (
+            build_group_sizes(
+                train
+            )
+        )
+
+        validation_group = (
+            build_group_sizes(
+                validation
+            )
+        )
+
+        candidate_results = []
+
+        for candidate in (
+            config.candidates
+        ):
+            (
+                best_iteration,
+                validation_mean_ic,
+                validation_valid_months,
+                validation_ndcg,
+            ) = _evaluate_candidate(
+                candidate,
+                x_train=x_train,
+                y_train=y_train,
+                train_group=train_group,
+                x_validation=(
+                    x_validation
+                ),
+                y_validation=(
+                    y_validation
+                ),
+                validation_group=(
+                    validation_group
+                ),
+                validation_target=(
+                    validation[
+                        TARGET_COLUMN
+                    ]
+                ),
+                validation_dates=(
+                    validation[
+                        "as_of_date"
+                    ]
+                ),
+                config=config,
+            )
+
+            candidate_results.append(
+                {
+                    "fold_id": str(
+                        fold.fold_id
+                    ),
+                    "test_date": (
+                        pd.Timestamp(
+                            fold.test_date
+                        )
+                    ),
+                    "candidate_name": (
+                        candidate.candidate_name
+                    ),
+                    "num_leaves": (
+                        candidate.num_leaves
+                    ),
+                    "max_depth": (
+                        candidate.max_depth
+                    ),
+                    "min_child_samples": (
+                        candidate.min_child_samples
+                    ),
+                    "best_iteration": (
+                        best_iteration
+                    ),
+                    "validation_mean_ic": (
+                        validation_mean_ic
+                    ),
+                    "validation_valid_months": (
+                        validation_valid_months
+                    ),
+                    "validation_ndcg_at_10": (
+                        validation_ndcg
+                    ),
+                    "selected": False,
+                    "_candidate": candidate,
+                }
+            )
+
+        valid_results = [
+            result
+            for result in candidate_results
+            if np.isfinite(
+                result[
+                    "validation_mean_ic"
+                ]
+            )
+        ]
+
+        if not valid_results:
+            raise LightGBMRankingError(
+                f"No ranking candidate produced "
+                f"a valid validation IC for "
+                f"{fold.fold_id}."
+            )
+
+        best = max(
+            valid_results,
+            key=lambda result: (
+                result[
+                    "validation_mean_ic"
+                ],
+                -result[
+                    "num_leaves"
+                ],
+                -result[
+                    "best_iteration"
+                ],
+            ),
+        )
+
+        best[
+            "selected"
+        ] = True
+
+        selected_candidate = (
+            best[
+                "_candidate"
+            ]
+        )
+
+        selected_estimators = int(
+            best[
+                "best_iteration"
+            ]
+        )
+
+        for result in candidate_results:
+            search_rows.append(
+                {
+                    key: value
+                    for key, value
+                    in result.items()
+                    if key != "_candidate"
+                }
+            )
+
+        fitting = pd.concat(
+            [
+                train,
+                validation,
+            ],
+            ignore_index=True,
+        ).sort_values(
+            [
+                "as_of_date",
+                "ticker",
+            ]
+        )
+
+        x_fit = (
+            preprocessor.transform(
+                fitting
+            )
+        )
+
+        y_fit = (
+            build_relevance_labels(
+                fitting,
+                levels=(
+                    config.relevance_levels
+                ),
+            )
+        )
+
+        fitting_group = (
+            build_group_sizes(
+                fitting
+            )
+        )
+
+        final_model = _build_model(
+            selected_candidate,
+            config=config,
+            n_estimators=(
+                selected_estimators
+            ),
+        )
+
+        final_model.fit(
+            x_fit,
+            y_fit,
+            group=fitting_group,
+        )
+
+        prediction = (
+            final_model.predict(
+                x_test
+            )
+        )
+
+        block = test.loc[
+            :,
+            [
+                "as_of_date",
+                "ticker",
+                "sector",
+                TARGET_COLUMN,
+                TOP_LABEL_COLUMN,
+            ],
+        ].copy()
+
+        block.insert(
+            0,
+            "fold_id",
+            str(
+                fold.fold_id
+            ),
+        )
+
+        block[
+            "model_name"
+        ] = "lightgbm_ranker"
+
+        block[
+            "prediction"
+        ] = prediction.astype(
+            float
+        )
+
+        block[
+            "latest_fit_target_end_date"
+        ] = latest_fit_target_end
+
+        block[
+            "selected_candidate"
+        ] = (
+            selected_candidate.candidate_name
+        )
+
+        block[
+            "selected_estimators"
+        ] = selected_estimators
+
+        prediction_frames.append(
+            block
+        )
+
+        booster = (
+            final_model.booster_
+        )
+
+        gain = (
+            booster.feature_importance(
+                importance_type="gain"
+            )
+        )
+
+        split = (
+            booster.feature_importance(
+                importance_type="split"
+            )
+        )
+
+        total_gain = float(
+            gain.sum()
+        )
+
+        for (
+            feature,
+            gain_value,
+            split_value,
+        ) in zip(
+            feature_columns,
+            gain,
+            split,
+            strict=True,
+        ):
+            importance_rows.append(
+                {
+                    "fold_id": str(
+                        fold.fold_id
+                    ),
+                    "test_date": (
+                        pd.Timestamp(
+                            fold.test_date
+                        )
+                    ),
+                    "feature": feature,
+                    "gain": float(
+                        gain_value
+                    ),
+                    "gain_share": (
+                        float(
+                            gain_value
+                            / total_gain
+                        )
+                        if total_gain
+                        > 0.0
+                        else 0.0
+                    ),
+                    "split_count": int(
+                        split_value
+                    ),
+                }
+            )
+
+    predictions = (
+        pd.concat(
+            prediction_frames,
+            ignore_index=True,
+        )
+        .sort_values(
+            [
+                "as_of_date",
+                "ticker",
+            ]
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    duplicate_keys = int(
+        predictions.duplicated(
+            [
+                "fold_id",
+                "ticker",
+                "model_name",
+            ]
+        ).sum()
+    )
+
+    if duplicate_keys:
+        raise LightGBMRankingError(
+            "Ranking predictions contain duplicate keys."
+        )
+
+    return LightGBMRankingOutputs(
+        predictions=predictions,
+        hyperparameter_search=(
+            pd.DataFrame(
+                search_rows
+            )
+        ),
+        feature_importance=(
+            pd.DataFrame(
+                importance_rows
+            )
+        ),
+        feature_columns=(
+            feature_columns
+        ),
+    )
+
+referenced feature/global names:
+  - TARGET_COLUMN
+      type: str
+      value: 'target_21d_excess'
+  - TOP_LABEL_COLUMN
+      type: str
+      value: 'label_top_quintile'
+  - _require_columns
+      type: function
+      value: <function _require_columns at 0x0000014175458860>
+  - column
+      module value: not defined locally
+  - detect_model_features
+      type: function
+      value: <function detect_model_features at 0x00000141753A40E0>
+  - feature
+      module value: not defined locally
+  - feature_columns
+      module value: not defined locally
+  - fit_feature_preprocessor
+      type: function
+      value: <function fit_feature_preprocessor at 0x00000141753A42C0>
+
+quant_equity.models.model_baselines.generate_baseline_predictions
+------------------------------------------------------------------------
+status: FOUND
+signature: (panel: 'pd.DataFrame', fold_metadata: 'pd.DataFrame', *, minimum_composite_components: 'int' = 6) -> 'pd.DataFrame'
+
+source:
+def generate_baseline_predictions(
+    panel: pd.DataFrame,
+    fold_metadata: pd.DataFrame,
+    *,
+    minimum_composite_components: int = 6,
+) -> pd.DataFrame:
+    """Generate Step 13A predictions on frozen OOS dates."""
+    required_panel_columns = (
+        "as_of_date",
+        "ticker",
+        "sector",
+        "target_21d_excess",
+        "label_top_quintile",
+        MOMENTUM_FEATURE,
+        *tuple(
+            COMPOSITE_FEATURE_DIRECTIONS
+        ),
+    )
+
+    _require_columns(
+        panel,
+        required_panel_columns,
+        dataset_name="modeling panel",
+    )
+
+    _require_columns(
+        fold_metadata,
+        (
+            "fold_id",
+            "test_date",
+            "test_rows",
+        ),
+        dataset_name="walk-forward fold metadata",
+    )
+
+    panel = panel.copy()
+    folds = fold_metadata.copy()
+
+    panel["as_of_date"] = pd.to_datetime(
+        panel["as_of_date"]
+    )
+
+    folds["test_date"] = pd.to_datetime(
+        folds["test_date"]
+    )
+
+    duplicate_test_dates = int(
+        folds["test_date"]
+        .duplicated()
+        .sum()
+    )
+
+    if duplicate_test_dates:
+        raise ModelBaselineError(
+            "Walk-forward metadata contains "
+            f"{duplicate_test_dates} duplicated test dates."
+        )
+
+    output: list[pd.DataFrame] = []
+
+    for fold in (
+        folds.sort_values(
+            "test_date"
+        )
+        .itertuples(
+            index=False
+        )
+    ):
+        test_date = pd.Timestamp(
+            fold.test_date
+        )
+
+        test = (
+            panel.loc[
+                panel["as_of_date"].eq(
+                    test_date
+                )
+            ]
+            .sort_values(
+                "ticker"
+            )
+            .copy()
+        )
+
+        expected_rows = int(
+            fold.test_rows
+        )
+
+        if len(test) != expected_rows:
+            raise ModelBaselineError(
+                f"{fold.fold_id} expected "
+                f"{expected_rows} test rows but "
+                f"found {len(test)}."
+            )
+
+        scores = {
+            "constant": score_constant(
+                test
+            ),
+            "momentum_3m": score_momentum(
+                test
+            ),
+            (
+                "technical_equal_weight_composite"
+            ): score_technical_composite(
+                test,
+                minimum_components=(
+                    minimum_composite_components
+                ),
+            ),
+        }
+
+        for (
+            model_name,
+            prediction,
+        ) in scores.items():
+            block = test.loc[
+                :,
+                [
+                    "as_of_date",
+                    "ticker",
+                    "sector",
+                    "target_21d_excess",
+                    "label_top_quintile",
+                ],
+            ].copy()
+
+            block.insert(
+                0,
+                "fold_id",
+                str(
+                    fold.fold_id
+                ),
+            )
+
+            block[
+                "model_name"
+            ] = model_name
+
+            block[
+                "prediction"
+            ] = prediction.astype(
+                float
+            )
+
+            output.append(
+                block.loc[
+                    :,
+                    BASELINE_PREDICTION_COLUMNS,
+                ]
+            )
+
+    if not output:
+        raise ModelBaselineError(
+            "No baseline predictions were generated."
+        )
+
+    result = pd.concat(
+        output,
+        ignore_index=True,
+    )
+
+    duplicate_keys = int(
+        result.duplicated(
+            subset=[
+                "fold_id",
+                "ticker",
+                "model_name",
+            ]
+        ).sum()
+    )
+
+    if duplicate_keys:
+        raise ModelBaselineError(
+            "Baseline predictions contain "
+            f"{duplicate_keys} duplicated keys."
+        )
+
+    return result.sort_values(
+        [
+            "as_of_date",
+            "model_name",
+            "ticker",
+        ]
+    ).reset_index(
+        drop=True
+    )
+
+referenced feature/global names:
+  - BASELINE_PREDICTION_COLUMNS
+      type: tuple
+      length: 8
+      value: ('fold_id', 'as_of_date', 'ticker', 'sector', 'model_name', 'prediction', 'target_21d_excess', 'label_top_quintile')
+  - COMPOSITE_FEATURE_DIRECTIONS
+      type: dict
+      length: 8
+      value: {'tech__amihud_illiquidity_20d_sector_neutral': 1.0, 'tech__reversal_1m_sector_neutral': 1.0, 'tech__volatility_60d_sector_neutral': 1.0, 'tech__distance_sma_50d_sector_neutral': -1.0, 'tech__beta_60d_market_sector_neutral': 1.0, 'tech__return_3m_sector_neutral': 1.0, 'tech__max_drawdown_126d_sector_neutral': -1.0, 'tech__average_dollar_volume_20d_sector_neutral': -1.0}
+  - MOMENTUM_FEATURE
+      type: str
+      value: 'tech__return_3m_sector_neutral'
+  - _require_columns
+      type: function
+      value: <function _require_columns at 0x000001417537EC00>
+  - required_panel_columns
+      module value: not defined locally
+
+quant_equity.models.model_baselines.score_technical_composite
+------------------------------------------------------------------------
+status: FOUND
+signature: (test: 'pd.DataFrame', *, minimum_components: 'int' = 6) -> 'pd.Series'
+
+source:
+def score_technical_composite(
+    test: pd.DataFrame,
+    *,
+    minimum_components: int = 6,
+) -> pd.Series:
+    """Build the frozen equal-weight technical composite."""
+    if not 1 <= minimum_components <= len(
+        COMPOSITE_FEATURE_DIRECTIONS
+    ):
+        raise ModelBaselineError(
+            "minimum_components must be between "
+            "1 and the number of composite features."
+        )
+
+    columns = tuple(
+        COMPOSITE_FEATURE_DIRECTIONS
+    )
+
+    _require_columns(
+        test,
+        columns,
+        dataset_name="test cross-section",
+    )
+
+    values = (
+        test.loc[:, columns]
+        .apply(
+            pd.to_numeric,
+            errors="coerce",
+        )
+        .astype(float)
+    )
+
+    directions = pd.Series(
+        COMPOSITE_FEATURE_DIRECTIONS,
+        dtype=float,
+    )
+
+    signed = values.mul(
+        directions,
+        axis="columns",
+    )
+
+    available_components = (
+        signed.notna().sum(
+            axis=1
+        )
+    )
+
+    score = signed.mean(
+        axis=1,
+        skipna=True,
+    )
+
+    return score.where(
+        available_components
+        >= minimum_components
+    )
+
+referenced feature/global names:
+  - COMPOSITE_FEATURE_DIRECTIONS
+      type: dict
+      length: 8
+      value: {'tech__amihud_illiquidity_20d_sector_neutral': 1.0, 'tech__reversal_1m_sector_neutral': 1.0, 'tech__volatility_60d_sector_neutral': 1.0, 'tech__distance_sma_50d_sector_neutral': -1.0, 'tech__beta_60d_market_sector_neutral': 1.0, 'tech__return_3m_sector_neutral': 1.0, 'tech__max_drawdown_126d_sector_neutral': -1.0, 'tech__average_dollar_volume_20d_sector_neutral': -1.0}
+  - _require_columns
+      type: function
+      value: <function _require_columns at 0x000001417537EC00>
+  - columns
+      module value: not defined locally
+
+Frozen technical-composite exports
+------------------------------------------------------------------------
+COMPOSITE_FEATURE_DIRECTIONS:
+      type: dict
+      length: 8
+      value: {'tech__amihud_illiquidity_20d_sector_neutral': 1.0, 'tech__reversal_1m_sector_neutral': 1.0, 'tech__volatility_60d_sector_neutral': 1.0, 'tech__distance_sma_50d_sector_neutral': -1.0, 'tech__beta_60d_market_sector_neutral': 1.0, 'tech__return_3m_sector_neutral': 1.0, 'tech__max_drawdown_126d_sector_neutral': -1.0, 'tech__average_dollar_volume_20d_sector_neutral': -1.0}
+TECHNICAL_COMPOSITE_DIRECTIONS:
+      type: dict
+      length: 8
+      value: {'amihud_illiquidity_20d_sector_neutral': 1.0, 'reversal_1m_sector_neutral': 1.0, 'volatility_60d_sector_neutral': 1.0, 'distance_sma_50d_sector_neutral': -1.0, 'beta_60d_market_sector_neutral': 1.0, 'return_3m_sector_neutral': 1.0, 'max_drawdown_126d_sector_neutral': -1.0, 'average_dollar_volume_20d_sector_neutral': -1.0}
+
+Audit checks
+------------------------------------------------------------------------
+regularized_linear_source_available: PASS
+lightgbm_ranking_source_available: PASS
+baseline_generation_source_available: PASS
+composite_directions_available: PASS
+
+readiness_checks: 4
+failed_readiness_checks: 0

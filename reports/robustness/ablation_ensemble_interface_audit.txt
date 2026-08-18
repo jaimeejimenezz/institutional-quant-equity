@@ -1,0 +1,1452 @@
+Institutional Quant Equity Research Platform
+Ablation ensemble interface audit
+========================================================================
+
+Module: quant_equity.models.ensemble
+File: C:\Users\Usuario\Documents\PROYECTO_FINTECH\institutional-quant-equity\src\quant_equity\models\ensemble.py
+
+EnsembleConfig(expected_cross_section_size: 'int' = 50, equal_weight_prior: 'float' = 0.5, minimum_validation_dates: 'int' = 12) -> None
+    expected_cross_section_size: 50
+    equal_weight_prior: 0.5
+    minimum_validation_dates: 12
+
+source:
+@dataclass(frozen=True)
+class EnsembleConfig:
+    """Configuration for final alpha ensemble construction."""
+
+    expected_cross_section_size: int = 50
+    equal_weight_prior: float = 0.50
+    minimum_validation_dates: int = 12
+
+    def validate(self) -> None:
+        """Validate ensemble configuration."""
+        if self.expected_cross_section_size < 2:
+            raise EnsembleError(
+                "expected_cross_section_size must exceed one."
+            )
+
+        if not 0.0 <= self.equal_weight_prior <= 1.0:
+            raise EnsembleError(
+                "equal_weight_prior must be between 0 and 1."
+            )
+
+        if self.minimum_validation_dates < 1:
+            raise EnsembleError(
+                "minimum_validation_dates must be positive."
+            )
+
+------------------------------------------------------------------------
+
+build_validation_weights(panel: 'pd.DataFrame', fold_metadata: 'pd.DataFrame', elastic_hyperparameters: 'pd.DataFrame', ranking_hyperparameters: 'pd.DataFrame', *, config: 'EnsembleConfig | None' = None) -> 'pd.DataFrame'
+
+source:
+def build_validation_weights(
+    panel: pd.DataFrame,
+    fold_metadata: pd.DataFrame,
+    elastic_hyperparameters: pd.DataFrame,
+    ranking_hyperparameters: pd.DataFrame,
+    *,
+    config: EnsembleConfig | None = None,
+) -> pd.DataFrame:
+    """Build fold-specific weights using validation information only."""
+    if config is None:
+        config = EnsembleConfig()
+
+    config.validate()
+
+    _require_columns(
+        panel,
+        (
+            "as_of_date",
+            "ticker",
+            "target_21d_excess",
+        ),
+        dataset_name="modeling panel",
+    )
+
+    _require_columns(
+        fold_metadata,
+        (
+            "fold_id",
+            "test_date",
+            "validation_start_date",
+            "validation_end_date",
+        ),
+        dataset_name="walk-forward metadata",
+    )
+
+    _require_columns(
+        elastic_hyperparameters,
+        (
+            "fold_id",
+            "model_name",
+            "validation_mean_ic",
+            "selected",
+        ),
+        dataset_name="linear hyperparameter research",
+    )
+
+    _require_columns(
+        ranking_hyperparameters,
+        (
+            "fold_id",
+            "validation_mean_ic",
+            "selected",
+        ),
+        dataset_name="ranking hyperparameter research",
+    )
+
+    panel = panel.copy()
+    folds = fold_metadata.copy()
+
+    panel[
+        "as_of_date"
+    ] = pd.to_datetime(
+        panel[
+            "as_of_date"
+        ]
+    ).dt.normalize()
+
+    for column in (
+        "test_date",
+        "validation_start_date",
+        "validation_end_date",
+    ):
+        folds[
+            column
+        ] = pd.to_datetime(
+            folds[
+                column
+            ]
+        ).dt.normalize()
+
+    elastic_selected = (
+        elastic_hyperparameters.loc[
+            _selected_mask(
+                elastic_hyperparameters
+            )
+            & elastic_hyperparameters[
+                "model_name"
+            ].eq(
+                "elastic_net"
+            ),
+            [
+                "fold_id",
+                "validation_mean_ic",
+            ],
+        ]
+        .rename(
+            columns={
+                "validation_mean_ic": (
+                    "elastic_net_validation_ic"
+                )
+            }
+        )
+    )
+
+    ranking_selected = (
+        ranking_hyperparameters.loc[
+            _selected_mask(
+                ranking_hyperparameters
+            ),
+            [
+                "fold_id",
+                "validation_mean_ic",
+            ],
+        ]
+        .rename(
+            columns={
+                "validation_mean_ic": (
+                    "lightgbm_ranker_validation_ic"
+                )
+            }
+        )
+    )
+
+    if elastic_selected[
+        "fold_id"
+    ].duplicated().any():
+        raise EnsembleError(
+            "Elastic Net has multiple selected configurations "
+            "for the same fold."
+        )
+
+    if ranking_selected[
+        "fold_id"
+    ].duplicated().any():
+        raise EnsembleError(
+            "LightGBM Ranker has multiple selected configurations "
+            "for the same fold."
+        )
+
+    rows = []
+
+    for fold in folds.sort_values(
+        "test_date"
+    ).itertuples(
+        index=False
+    ):
+        validation = panel.loc[
+            panel[
+                "as_of_date"
+            ].between(
+                pd.Timestamp(
+                    fold.validation_start_date
+                ),
+                pd.Timestamp(
+                    fold.validation_end_date
+                ),
+                inclusive="both",
+            )
+        ].copy()
+
+        validation_dates = int(
+            validation[
+                "as_of_date"
+            ].nunique()
+        )
+
+        if (
+            validation_dates
+            < config.minimum_validation_dates
+        ):
+            raise EnsembleError(
+                f"{fold.fold_id} has only "
+                f"{validation_dates} validation dates."
+            )
+
+        composite_prediction = (
+            score_technical_composite(
+                validation
+            )
+        )
+
+        (
+            composite_ic,
+            composite_valid_months,
+        ) = _mean_monthly_spearman(
+            composite_prediction,
+            validation[
+                "target_21d_excess"
+            ],
+            validation[
+                "as_of_date"
+            ],
+        )
+
+        elastic_row = (
+            elastic_selected.loc[
+                elastic_selected[
+                    "fold_id"
+                ].astype(
+                    str
+                ).eq(
+                    str(
+                        fold.fold_id
+                    )
+                )
+            ]
+        )
+
+        ranking_row = (
+            ranking_selected.loc[
+                ranking_selected[
+                    "fold_id"
+                ].astype(
+                    str
+                ).eq(
+                    str(
+                        fold.fold_id
+                    )
+                )
+            ]
+        )
+
+        if len(
+            elastic_row
+        ) != 1:
+            raise EnsembleError(
+                f"Missing selected Elastic Net configuration "
+                f"for {fold.fold_id}."
+            )
+
+        if len(
+            ranking_row
+        ) != 1:
+            raise EnsembleError(
+                f"Missing selected ranking configuration "
+                f"for {fold.fold_id}."
+            )
+
+        elastic_ic = float(
+            elastic_row.iloc[
+                0
+            ][
+                "elastic_net_validation_ic"
+            ]
+        )
+
+        ranking_ic = float(
+            ranking_row.iloc[
+                0
+            ][
+                "lightgbm_ranker_validation_ic"
+            ]
+        )
+
+        weights = (
+            _validation_weights_from_ic(
+                np.array(
+                    [
+                        composite_ic,
+                        elastic_ic,
+                        ranking_ic,
+                    ]
+                ),
+                equal_weight_prior=(
+                    config.equal_weight_prior
+                ),
+            )
+        )
+
+        rows.append(
+            {
+                "fold_id": str(
+                    fold.fold_id
+                ),
+                "test_date": pd.Timestamp(
+                    fold.test_date
+                ),
+                "composite_validation_ic": (
+                    composite_ic
+                ),
+                "composite_validation_months": (
+                    composite_valid_months
+                ),
+                "elastic_net_validation_ic": (
+                    elastic_ic
+                ),
+                "lightgbm_ranker_validation_ic": (
+                    ranking_ic
+                ),
+                "composite_weight": (
+                    float(
+                        weights[0]
+                    )
+                ),
+                "elastic_net_weight": (
+                    float(
+                        weights[1]
+                    )
+                ),
+                "lightgbm_ranker_weight": (
+                    float(
+                        weights[2]
+                    )
+                ),
+            }
+        )
+
+    result = pd.DataFrame(
+        rows
+    )
+
+    weight_sum = (
+        result[
+            [
+                "composite_weight",
+                "elastic_net_weight",
+                "lightgbm_ranker_weight",
+            ]
+        ]
+        .sum(
+            axis=1
+        )
+    )
+
+    if not np.allclose(
+        weight_sum,
+        1.0,
+    ):
+        raise EnsembleError(
+            "Validation weights do not sum to one."
+        )
+
+    return result
+
+------------------------------------------------------------------------
+
+build_component_scores(predictions: 'pd.DataFrame', *, config: 'EnsembleConfig | None' = None) -> 'pd.DataFrame'
+
+source:
+def build_component_scores(
+    predictions: pd.DataFrame,
+    *,
+    config: EnsembleConfig | None = None,
+) -> pd.DataFrame:
+    """Align component predictions and convert them to monthly percentiles."""
+    if config is None:
+        config = EnsembleConfig()
+
+    config.validate()
+
+    _require_columns(
+        predictions,
+        (
+            "fold_id",
+            "as_of_date",
+            "ticker",
+            "sector",
+            "model_name",
+            "prediction",
+            "target_21d_excess",
+            "label_top_quintile",
+        ),
+        dataset_name="out-of-sample predictions",
+    )
+
+    selected = predictions.loc[
+        predictions[
+            "model_name"
+        ].isin(
+            COMPONENT_MODELS
+        )
+    ].copy()
+
+    observed_models = set(
+        selected[
+            "model_name"
+        ].unique()
+    )
+
+    if observed_models != set(
+        COMPONENT_MODELS
+    ):
+        raise EnsembleError(
+            "The ensemble requires exactly the frozen "
+            "composite, Elastic Net and LightGBM Ranker signals."
+        )
+
+    selected[
+        "as_of_date"
+    ] = pd.to_datetime(
+        selected[
+            "as_of_date"
+        ]
+    ).dt.normalize()
+
+    keys = [
+        "fold_id",
+        "as_of_date",
+        "ticker",
+    ]
+
+    counts = (
+        selected.groupby(
+            keys
+        )
+        .size()
+    )
+
+    if not counts.eq(
+        len(
+            COMPONENT_MODELS
+        )
+    ).all():
+        raise EnsembleError(
+            "Component predictions are not perfectly aligned."
+        )
+
+    for column in (
+        "sector",
+        "target_21d_excess",
+        "label_top_quintile",
+    ):
+        consistency = (
+            selected.groupby(
+                keys
+            )[
+                column
+            ]
+            .nunique(
+                dropna=False
+            )
+        )
+
+        if not consistency.eq(
+            1
+        ).all():
+            raise EnsembleError(
+                f"{column} differs across component models."
+            )
+
+    metadata = (
+        selected.groupby(
+            keys,
+            as_index=False,
+        )
+        .agg(
+            sector=(
+                "sector",
+                "first",
+            ),
+            target_21d_excess=(
+                "target_21d_excess",
+                "first",
+            ),
+            label_top_quintile=(
+                "label_top_quintile",
+                "first",
+            ),
+        )
+    )
+
+    wide = (
+        selected.pivot(
+            index=keys,
+            columns="model_name",
+            values="prediction",
+        )
+        .reset_index()
+    )
+
+    wide.columns.name = None
+
+    result = metadata.merge(
+        wide,
+        on=keys,
+        how="inner",
+        validate="one_to_one",
+    )
+
+    cross_section_sizes = (
+        result.groupby(
+            "as_of_date"
+        )[
+            "ticker"
+        ]
+        .nunique()
+    )
+
+    if not cross_section_sizes.eq(
+        config.expected_cross_section_size
+    ).all():
+        raise EnsembleError(
+            "Unexpected ensemble cross-section size."
+        )
+
+    for model_name in COMPONENT_MODELS:
+        alias = COMPONENT_ALIASES[
+            model_name
+        ]
+
+        raw_column = (
+            f"{alias}_raw"
+        )
+
+        percentile_column = (
+            f"{alias}_percentile"
+        )
+
+        result[
+            raw_column
+        ] = pd.to_numeric(
+            result[
+                model_name
+            ],
+            errors="coerce",
+        )
+
+        result[
+            percentile_column
+        ] = (
+            result.groupby(
+                "as_of_date"
+            )[
+                raw_column
+            ]
+            .transform(
+                _cross_section_percentile
+            )
+        )
+
+        result = result.drop(
+            columns=[
+                model_name
+            ]
+        )
+
+    return result.sort_values(
+        [
+            "as_of_date",
+            "ticker",
+        ]
+    ).reset_index(
+        drop=True
+    )
+
+------------------------------------------------------------------------
+
+build_ensemble_candidates(component_scores: 'pd.DataFrame', validation_weights: 'pd.DataFrame') -> 'pd.DataFrame'
+
+source:
+def build_ensemble_candidates(
+    component_scores: pd.DataFrame,
+    validation_weights: pd.DataFrame,
+) -> pd.DataFrame:
+    """Create a small pre-defined ensemble comparison set."""
+    data = component_scores.merge(
+        validation_weights[
+            [
+                "fold_id",
+                "composite_weight",
+                "elastic_net_weight",
+                "lightgbm_ranker_weight",
+            ]
+        ],
+        on="fold_id",
+        how="left",
+        validate="many_to_one",
+    )
+
+    weight_columns = [
+        "composite_weight",
+        "elastic_net_weight",
+        "lightgbm_ranker_weight",
+    ]
+
+    if data[
+        weight_columns
+    ].isna().any().any():
+        raise EnsembleError(
+            "Some OOS rows do not have validation weights."
+        )
+
+    equal_three = (
+        data[
+            [
+                "composite_percentile",
+                "elastic_net_percentile",
+                "lightgbm_ranker_percentile",
+            ]
+        ]
+        .mean(
+            axis=1
+        )
+    )
+
+    core_two = (
+        data[
+            [
+                "composite_percentile",
+                "elastic_net_percentile",
+            ]
+        ]
+        .mean(
+            axis=1
+        )
+    )
+
+    validation_weighted = (
+        data[
+            "composite_percentile"
+        ]
+        * data[
+            "composite_weight"
+        ]
+        + data[
+            "elastic_net_percentile"
+        ]
+        * data[
+            "elastic_net_weight"
+        ]
+        + data[
+            "lightgbm_ranker_percentile"
+        ]
+        * data[
+            "lightgbm_ranker_weight"
+        ]
+    )
+
+    blocks = [
+        _evaluation_block(
+            data,
+            model_name=(
+                "equal_percentile_ensemble"
+            ),
+            prediction=(
+                equal_three
+            ),
+        ),
+        _evaluation_block(
+            data,
+            model_name=(
+                "core_percentile_ensemble"
+            ),
+            prediction=(
+                core_two
+            ),
+        ),
+        _evaluation_block(
+            data,
+            model_name=(
+                "validation_weighted_ensemble"
+            ),
+            prediction=(
+                validation_weighted
+            ),
+        ),
+    ]
+
+    return pd.concat(
+        blocks,
+        ignore_index=True,
+    )
+
+------------------------------------------------------------------------
+
+build_final_alpha_signal(component_scores: 'pd.DataFrame', validation_weights: 'pd.DataFrame') -> 'pd.DataFrame'
+
+source:
+def build_final_alpha_signal(
+    component_scores: pd.DataFrame,
+    validation_weights: pd.DataFrame,
+) -> pd.DataFrame:
+    """Build the production-facing final alpha signal."""
+    data = component_scores.merge(
+        validation_weights[
+            [
+                "fold_id",
+                "composite_weight",
+                "elastic_net_weight",
+                "lightgbm_ranker_weight",
+            ]
+        ],
+        on="fold_id",
+        how="left",
+        validate="many_to_one",
+    )
+
+    data[
+        "composite_contribution"
+    ] = (
+        data[
+            "composite_percentile"
+        ]
+        * data[
+            "composite_weight"
+        ]
+    )
+
+    data[
+        "elastic_net_contribution"
+    ] = (
+        data[
+            "elastic_net_percentile"
+        ]
+        * data[
+            "elastic_net_weight"
+        ]
+    )
+
+    data[
+        "lightgbm_ranker_contribution"
+    ] = (
+        data[
+            "lightgbm_ranker_percentile"
+        ]
+        * data[
+            "lightgbm_ranker_weight"
+        ]
+    )
+
+    data[
+        "raw_prediction"
+    ] = data[
+        [
+            "composite_contribution",
+            "elastic_net_contribution",
+            "lightgbm_ranker_contribution",
+        ]
+    ].sum(
+        axis=1
+    )
+
+    data[
+        "percentile_score"
+    ] = (
+        data.groupby(
+            "as_of_date"
+        )[
+            "raw_prediction"
+        ]
+        .transform(
+            _cross_section_percentile
+        )
+    )
+
+    ranked_parts = []
+
+    for _, month in data.groupby(
+        "as_of_date",
+        sort=True,
+    ):
+        month = month.sort_values(
+            [
+                "raw_prediction",
+                "ticker",
+            ],
+            ascending=[
+                False,
+                True,
+            ],
+        ).copy()
+
+        month[
+            "rank"
+        ] = np.arange(
+            1,
+            len(month) + 1,
+            dtype=int,
+        )
+
+        ranked_parts.append(
+            month
+        )
+
+    data = pd.concat(
+        ranked_parts,
+        ignore_index=True,
+    )
+
+    data[
+        "model_contributions"
+    ] = data.apply(
+        lambda row: json.dumps(
+            {
+                "technical_composite": {
+                    "weight": float(
+                        row[
+                            "composite_weight"
+                        ]
+                    ),
+                    "percentile": float(
+                        row[
+                            "composite_percentile"
+                        ]
+                    ),
+                    "contribution": float(
+                        row[
+                            "composite_contribution"
+                        ]
+                    ),
+                },
+                "elastic_net": {
+                    "weight": float(
+                        row[
+                            "elastic_net_weight"
+                        ]
+                    ),
+                    "percentile": float(
+                        row[
+                            "elastic_net_percentile"
+                        ]
+                    ),
+                    "contribution": float(
+                        row[
+                            "elastic_net_contribution"
+                        ]
+                    ),
+                },
+                "lightgbm_ranker": {
+                    "weight": float(
+                        row[
+                            "lightgbm_ranker_weight"
+                        ]
+                    ),
+                    "percentile": float(
+                        row[
+                            "lightgbm_ranker_percentile"
+                        ]
+                    ),
+                    "contribution": float(
+                        row[
+                            "lightgbm_ranker_contribution"
+                        ]
+                    ),
+                },
+            },
+            sort_keys=True,
+        ),
+        axis=1,
+    )
+
+    expected_raw = data[
+        [
+            "composite_contribution",
+            "elastic_net_contribution",
+            "lightgbm_ranker_contribution",
+        ]
+    ].sum(
+        axis=1
+    )
+
+    if not np.allclose(
+        expected_raw,
+        data[
+            "raw_prediction"
+        ],
+    ):
+        raise EnsembleError(
+            "Model contributions do not sum to the final score."
+        )
+
+    output_columns = [
+        "fold_id",
+        "as_of_date",
+        "ticker",
+        "sector",
+        "raw_prediction",
+        "percentile_score",
+        "rank",
+        "composite_weight",
+        "elastic_net_weight",
+        "lightgbm_ranker_weight",
+        "composite_contribution",
+        "elastic_net_contribution",
+        "lightgbm_ranker_contribution",
+        "model_contributions",
+    ]
+
+    return data.loc[
+        :,
+        output_columns,
+    ].sort_values(
+        [
+            "as_of_date",
+            "rank",
+        ]
+    ).reset_index(
+        drop=True
+    )
+
+------------------------------------------------------------------------
+
+build_ablation_candidates(component_scores: 'pd.DataFrame', validation_weights: 'pd.DataFrame') -> 'pd.DataFrame'
+
+source:
+def build_ablation_candidates(
+    component_scores: pd.DataFrame,
+    validation_weights: pd.DataFrame,
+) -> pd.DataFrame:
+    """Remove one component at a time and renormalize remaining weights."""
+    data = component_scores.merge(
+        validation_weights[
+            [
+                "fold_id",
+                "composite_weight",
+                "elastic_net_weight",
+                "lightgbm_ranker_weight",
+            ]
+        ],
+        on="fold_id",
+        how="left",
+        validate="many_to_one",
+    )
+
+    components = {
+        "composite": (
+            "composite_percentile",
+            "composite_weight",
+        ),
+        "elastic_net": (
+            "elastic_net_percentile",
+            "elastic_net_weight",
+        ),
+        "lightgbm_ranker": (
+            "lightgbm_ranker_percentile",
+            "lightgbm_ranker_weight",
+        ),
+    }
+
+    blocks = []
+
+    for omitted in components:
+        remaining = [
+            name
+            for name in components
+            if name != omitted
+        ]
+
+        denominator = sum(
+            data[
+                components[
+                    name
+                ][1]
+            ]
+            for name in remaining
+        )
+
+        prediction = sum(
+            data[
+                components[
+                    name
+                ][0]
+            ]
+            * data[
+                components[
+                    name
+                ][1]
+            ]
+            for name in remaining
+        ) / denominator
+
+        blocks.append(
+            _evaluation_block(
+                data,
+                model_name=(
+                    f"without_{omitted}"
+                ),
+                prediction=(
+                    prediction
+                ),
+            )
+        )
+
+    return pd.concat(
+        blocks,
+        ignore_index=True,
+    )
+
+------------------------------------------------------------------------
+
+Ensemble script
+========================================================================
+script: C:\Users\Usuario\Documents\PROYECTO_FINTECH\institutional-quant-equity\scripts\build_final_alpha_signal.py
+status: FOUND
+quant_equity imports:
+  - quant_equity.config: PROJECT_ROOT, REPORTS_DIR
+  - quant_equity.logging_config: configure_logging
+  - quant_equity.models: EnsembleConfig, build_ablation_candidates, build_component_scores, build_ensemble_candidates, build_final_alpha_signal, build_validation_weights, compute_component_correlations, compute_sector_signal_diagnostics, evaluate_model_predictions
+relevant calls:
+  - EnsembleConfig
+  - build_validation_weights | keyword args: config
+  - build_component_scores | keyword args: config
+  - build_ensemble_candidates
+  - build_final_alpha_signal
+  - compute_component_correlations
+
+Full script source:
+"""Build, evaluate and audit the final cross-sectional alpha signal."""
+
+from __future__ import annotations
+
+import logging
+
+import pandas as pd
+
+from quant_equity.config import (
+    PROJECT_ROOT,
+    REPORTS_DIR,
+)
+from quant_equity.logging_config import (
+    configure_logging,
+)
+from quant_equity.models import (
+    EnsembleConfig,
+    build_ablation_candidates,
+    build_component_scores,
+    build_ensemble_candidates,
+    build_final_alpha_signal,
+    build_validation_weights,
+    compute_component_correlations,
+    compute_sector_signal_diagnostics,
+    evaluate_model_predictions,
+)
+
+PANEL_PATH = PROJECT_ROOT / "data" / "processed" / "modeling_panel.parquet"
+
+FOLDS_PATH = PROJECT_ROOT / "data" / "processed" / "walk_forward_folds.parquet"
+
+ALL_MODEL_PREDICTIONS_PATH = (
+    PROJECT_ROOT / "data" / "processed" / "predictions_oos_all_models.parquet"
+)
+
+ELASTIC_HYPERPARAMETER_PATH = REPORTS_DIR / "tables" / "regularized_linear_hyperparameters.csv"
+
+RANKER_HYPERPARAMETER_PATH = REPORTS_DIR / "tables" / "lightgbm_ranker_hyperparameters.csv"
+
+FINAL_SIGNAL_PATH = PROJECT_ROOT / "data" / "processed" / "final_alpha_signal.parquet"
+
+WEIGHTS_PATH = REPORTS_DIR / "tables" / "ensemble_validation_weights.csv"
+
+CANDIDATE_MONTHLY_PATH = REPORTS_DIR / "tables" / "ensemble_candidate_monthly_metrics.csv"
+
+CANDIDATE_SUMMARY_PATH = REPORTS_DIR / "tables" / "ensemble_candidate_summary.csv"
+
+CORRELATION_PATH = REPORTS_DIR / "tables" / "ensemble_signal_correlations.csv"
+
+ABLATION_PATH = REPORTS_DIR / "tables" / "ensemble_ablation_summary.csv"
+
+SECTOR_DIAGNOSTICS_PATH = REPORTS_DIR / "tables" / "ensemble_sector_diagnostics.csv"
+
+REPORT_PATH = REPORTS_DIR / "models" / "ensemble_signal.md"
+
+
+def write_report(
+    *,
+    candidate_summary: pd.DataFrame,
+    validation_weights: pd.DataFrame,
+    correlations: pd.DataFrame,
+    ablation_summary: pd.DataFrame,
+    sector_diagnostics: pd.DataFrame,
+    final_signal: pd.DataFrame,
+) -> None:
+    """Write the consolidated alpha ensemble report."""
+    REPORT_PATH.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    weight_summary = validation_weights[
+        [
+            "composite_weight",
+            "elastic_net_weight",
+            "lightgbm_ranker_weight",
+        ]
+    ].describe()
+
+    sector_summary = (
+        sector_diagnostics.groupby(
+            "sector",
+            as_index=False,
+        )
+        .agg(
+            mean_percentile_score=(
+                "mean_percentile_score",
+                "mean",
+            ),
+            mean_top_group_share=(
+                "top_group_share",
+                "mean",
+            ),
+        )
+        .sort_values(
+            "mean_percentile_score",
+            ascending=False,
+        )
+    )
+
+    lines = [
+        "# Final Alpha Ensemble",
+        "",
+        "## Objective",
+        "",
+        (
+            "Combine economically distinct cross-sectional "
+            "signals into one stable monthly alpha ranking."
+        ),
+        "",
+        "## Components",
+        "",
+        ("- Technical equal-weight composite"),
+        ("- Elastic Net"),
+        ("- LightGBM Ranker"),
+        "",
+        "## Weighting policy",
+        "",
+        (
+            "Weights are calculated independently for every "
+            "walk-forward fold using validation IC only."
+        ),
+        "",
+        ("No test-period return is used to determine ensemble weights."),
+        "",
+        (
+            "Validation weights are shrunk toward equal "
+            "weights to reduce model-selection instability."
+        ),
+        "",
+        "## Candidate ensemble comparison",
+        "",
+        "```text",
+        candidate_summary.to_string(index=False),
+        "```",
+        "",
+        "## Validation-weight distribution",
+        "",
+        "```text",
+        weight_summary.to_string(),
+        "```",
+        "",
+        "## Component correlations",
+        "",
+        "```text",
+        correlations.to_string(index=False),
+        "```",
+        "",
+        "## Marginal contribution diagnostics",
+        "",
+        "```text",
+        ablation_summary.to_string(index=False),
+        "```",
+        "",
+        "## Sector diagnostics",
+        "",
+        "```text",
+        sector_summary.to_string(index=False),
+        "```",
+        "",
+        "## Final signal coverage",
+        "",
+        "```text",
+        (f"rows: {len(final_signal)}"),
+        (f"dates: {final_signal['as_of_date'].nunique()}"),
+        (f"tickers: {final_signal['ticker'].nunique()}"),
+        "```",
+        "",
+        "## Downstream contract",
+        "",
+        (
+            "The final alpha artifact intentionally excludes "
+            "future realized targets. Portfolio construction "
+            "must consume only the stored alpha score, ranking "
+            "and contemporaneous metadata."
+        ),
+        "",
+        "**FINAL ALPHA SIGNAL READY**",
+        "",
+    ]
+
+    REPORT_PATH.write_text(
+        "\n".join(lines),
+        encoding="utf-8",
+    )
+
+
+def main() -> None:
+    """Build and audit the final alpha ensemble."""
+    configure_logging()
+
+    logger = logging.getLogger("quant_equity")
+
+    required_paths = (
+        PANEL_PATH,
+        FOLDS_PATH,
+        ALL_MODEL_PREDICTIONS_PATH,
+        ELASTIC_HYPERPARAMETER_PATH,
+        RANKER_HYPERPARAMETER_PATH,
+    )
+
+    for path in required_paths:
+        if not path.exists():
+            raise FileNotFoundError(f"Required input not found: {path}")
+
+    panel = pd.read_parquet(PANEL_PATH)
+
+    folds = pd.read_parquet(FOLDS_PATH)
+
+    predictions = pd.read_parquet(ALL_MODEL_PREDICTIONS_PATH)
+
+    elastic_hyperparameters = pd.read_csv(ELASTIC_HYPERPARAMETER_PATH)
+
+    ranking_hyperparameters = pd.read_csv(RANKER_HYPERPARAMETER_PATH)
+
+    config = EnsembleConfig()
+
+    validation_weights = build_validation_weights(
+        panel,
+        folds,
+        elastic_hyperparameters,
+        ranking_hyperparameters,
+        config=config,
+    )
+
+    component_scores = build_component_scores(
+        predictions,
+        config=config,
+    )
+
+    candidate_predictions = build_ensemble_candidates(
+        component_scores,
+        validation_weights,
+    )
+
+    (
+        candidate_monthly,
+        candidate_summary,
+    ) = evaluate_model_predictions(candidate_predictions)
+
+    final_signal = build_final_alpha_signal(
+        component_scores,
+        validation_weights,
+    )
+
+    correlations = compute_component_correlations(component_scores)
+
+    ablation_predictions = build_ablation_candidates(
+        component_scores,
+        validation_weights,
+    )
+
+    (
+        _,
+        ablation_summary,
+    ) = evaluate_model_predictions(ablation_predictions)
+
+    sector_diagnostics = compute_sector_signal_diagnostics(final_signal)
+
+    expected_rows = folds["test_rows"].sum()
+
+    if len(final_signal) != expected_rows:
+        raise ValueError("Final alpha coverage does not match the frozen OOS test universe.")
+
+    duplicate_keys = int(
+        final_signal.duplicated(
+            [
+                "as_of_date",
+                "ticker",
+            ]
+        ).sum()
+    )
+
+    if duplicate_keys:
+        raise ValueError("Final alpha signal contains duplicate keys.")
+
+    FINAL_SIGNAL_PATH.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    WEIGHTS_PATH.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    final_signal.to_parquet(
+        FINAL_SIGNAL_PATH,
+        index=False,
+    )
+
+    validation_weights.to_csv(
+        WEIGHTS_PATH,
+        index=False,
+    )
+
+    candidate_monthly.to_csv(
+        CANDIDATE_MONTHLY_PATH,
+        index=False,
+    )
+
+    candidate_summary.to_csv(
+        CANDIDATE_SUMMARY_PATH,
+        index=False,
+    )
+
+    correlations.to_csv(
+        CORRELATION_PATH,
+        index=False,
+    )
+
+    ablation_summary.to_csv(
+        ABLATION_PATH,
+        index=False,
+    )
+
+    sector_diagnostics.to_csv(
+        SECTOR_DIAGNOSTICS_PATH,
+        index=False,
+    )
+
+    write_report(
+        candidate_summary=(candidate_summary),
+        validation_weights=(validation_weights),
+        correlations=correlations,
+        ablation_summary=(ablation_summary),
+        sector_diagnostics=(sector_diagnostics),
+        final_signal=(final_signal),
+    )
+
+    logger.info("Final alpha ensemble completed.")
+
+    print()
+    print("Institutional Quant Equity Research Platform")
+    print("Final alpha ensemble")
+    print("------------------------------------------------")
+
+    print("Component models: 3")
+
+    print(f"Folds: {folds['fold_id'].nunique()}")
+
+    print(f"OOS dates: {final_signal['as_of_date'].nunique()}")
+
+    print(f"Final signal rows: {len(final_signal)}")
+
+    print(f"Duplicate signal keys: {duplicate_keys}")
+
+    print(f"Candidate ensembles: {candidate_summary['model_name'].nunique()}")
+
+    print()
+    print("Candidate comparison:")
+
+    print(candidate_summary.to_string(index=False))
+
+    print()
+    print("Average validation weights:")
+
+    print(
+        validation_weights[
+            [
+                "composite_weight",
+                "elastic_net_weight",
+                "lightgbm_ranker_weight",
+            ]
+        ]
+        .mean()
+        .to_string()
+    )
+
+    print()
+    print("Component correlations:")
+
+    print(correlations.to_string(index=False))
+
+    print()
+    print("Ablation diagnostics:")
+
+    print(ablation_summary.to_string(index=False))
+
+    print()
+    print(f"Final alpha signal: {FINAL_SIGNAL_PATH}")
+
+    print(f"Validation weights: {WEIGHTS_PATH}")
+
+    print(f"Candidate summary: {CANDIDATE_SUMMARY_PATH}")
+
+    print(f"Signal correlations: {CORRELATION_PATH}")
+
+    print(f"Ablation summary: {ABLATION_PATH}")
+
+    print(f"Sector diagnostics: {SECTOR_DIAGNOSTICS_PATH}")
+
+    print(f"Report: {REPORT_PATH}")
+
+    print()
+    print("Final alpha signal: READY")
+
+
+if __name__ == "__main__":
+    main()
+
+
+Audit checks
+========================================================================
+ensemble_module: PASS
+ensemble_config: PASS
+validation_weight_builder: PASS
+final_alpha_builder: PASS
+ensemble_script: PASS
+
+readiness_checks: 5
+failed_readiness_checks: 0

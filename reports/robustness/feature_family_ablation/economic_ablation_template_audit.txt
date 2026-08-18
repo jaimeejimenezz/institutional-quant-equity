@@ -1,0 +1,396 @@
+Institutional Quant Equity Research Platform
+Economic ablation template audit
+================================================
+source: C:\Users\Usuario\Documents\PROYECTO_FINTECH\institutional-quant-equity\scripts\run_ensemble_component_ablation.py
+
+Important assignments
+---------------------
+PREDICTIONS_PATH = PROCESSED_DATA_DIR / "predictions_oos_all_models.parquet"
+FINAL_SIGNAL_PATH = PROCESSED_DATA_DIR / "final_alpha_signal.parquet"
+VALIDATION_WEIGHTS_PATH = REPORTS_DIR / "tables" / "ensemble_validation_weights.csv"
+MARKET_DATA_PATH = PROCESSED_DATA_DIR / "market_daily.parquet"
+RISK_ESTIMATES_PATH = PROCESSED_DATA_DIR / "risk_estimates.parquet"
+SPY_DATA_PATH = PROCESSED_DATA_DIR / "benchmark_spy_daily.parquet"
+ABLATION_SIGNALS_PATH = PROCESSED_DATA_DIR / "robustness_ensemble_ablation_signals.parquet"
+ABLATION_WEIGHTS_PATH = PROCESSED_DATA_DIR / "robustness_ensemble_ablation_weights.parquet"
+TABLES_DIR = REPORTS_DIR / "tables"
+RESULTS_PATH = TABLES_DIR / "robustness_ensemble_component_ablation.csv"
+DIAGNOSTICS_PATH = TABLES_DIR / "robustness_ensemble_component_ablation_diagnostics.csv"
+CHECKS_PATH = TABLES_DIR / "robustness_ensemble_component_ablation_checks.csv"
+REPORT_PATH = REPORTS_DIR / "robustness" / "ensemble_component_ablation.md"
+BASELINE_SCENARIO = "full_ensemble"
+EXPECTED_SCENARIOS = {
+    BASELINE_SCENARIO,
+    *EXPECTED_ABLATIONS,
+}
+
+Relevant calls
+--------------
+BaselinePortfolioConfig(
+        candidate_count=CANDIDATE_COUNT,
+        equal_weight_positions=CANDIDATE_COUNT,
+        max_security_weight=MAX_SECURITY_WEIGHT,
+        max_sector_weight=MAX_SECTOR_WEIGHT,
+        minimum_positions=MINIMUM_POSITIONS,
+        weight_tolerance=WEIGHT_TOLERANCE,
+    )
+compute_portfolio_diagnostics(
+        weights,
+        weight_tolerance=WEIGHT_TOLERANCE,
+    )
+run_mvp_backtest(
+        targets,
+        market_data,
+        config=net_config,
+        risk_estimates=risk_estimates,
+        execution_cost_config=execution_config,
+    )
+build_buy_and_hold_benchmark(
+        spy_data,
+        strategy_name=(evaluation_config.benchmark_name),
+        ticker=(evaluation_config.benchmark_ticker),
+        start_date=start_date,
+        end_date=end_date,
+        initial_capital=(net_config.initial_capital),
+        transaction_cost_bps=(execution_config.linear_cost_bps),
+    )
+evaluate_performance(
+        outputs.daily_performance,
+        benchmark,
+        initial_capital=(net_config.initial_capital),
+        config=evaluation_config,
+    )
+build_score_weighted_portfolios(
+            signal,
+            config=config,
+        )
+
+Target helper availability
+--------------------------
+
+========================================================================
+_portfolio_config: FOUND
+========================================================================
+def _portfolio_config() -> BaselinePortfolioConfig:
+    """Return the frozen score-weighted portfolio configuration."""
+    config = BaselinePortfolioConfig(
+        candidate_count=CANDIDATE_COUNT,
+        equal_weight_positions=CANDIDATE_COUNT,
+        max_security_weight=MAX_SECURITY_WEIGHT,
+        max_sector_weight=MAX_SECTOR_WEIGHT,
+        minimum_positions=MINIMUM_POSITIONS,
+        weight_tolerance=WEIGHT_TOLERANCE,
+    )
+    config.validate()
+    return config
+
+========================================================================
+_build_portfolios: FOUND
+========================================================================
+def _build_portfolios(
+    signals: pd.DataFrame,
+) -> pd.DataFrame:
+    """Construct one score-weighted portfolio for every ablation signal."""
+    config = _portfolio_config()
+
+    blocks = []
+
+    for scenario, signal in signals.groupby(
+        "scenario",
+        sort=True,
+    ):
+        weights = build_score_weighted_portfolios(
+            signal,
+            config=config,
+        ).copy()
+
+        weights["method"] = str(scenario)
+
+        blocks.append(weights)
+
+    return (
+        pd.concat(
+            blocks,
+            ignore_index=True,
+        )
+        .sort_values(
+            [
+                "method",
+                "as_of_date",
+                "ticker",
+            ]
+        )
+        .reset_index(drop=True)
+    )
+
+========================================================================
+_prepare_backtest_targets: NOT FOUND
+========================================================================
+<not found>
+
+========================================================================
+_strategy_performance: FOUND
+========================================================================
+def _strategy_performance(
+    summary: pd.DataFrame,
+    *,
+    benchmark_name: str,
+) -> pd.DataFrame:
+    """Return only portfolio-strategy rows."""
+    return (
+        summary.loc[~summary["strategy_name"].eq(benchmark_name)]
+        .sort_values("strategy_name")
+        .reset_index(drop=True)
+    )
+
+========================================================================
+_execution_metrics: NOT FOUND
+========================================================================
+<not found>
+
+========================================================================
+main: FOUND
+========================================================================
+def main() -> None:
+    """Run portfolio-level ensemble component ablation analysis."""
+    configure_logging()
+
+    logger = logging.getLogger("quant_equity")
+
+    required_paths = (
+        PREDICTIONS_PATH,
+        FINAL_SIGNAL_PATH,
+        VALIDATION_WEIGHTS_PATH,
+        MARKET_DATA_PATH,
+        RISK_ESTIMATES_PATH,
+        SPY_DATA_PATH,
+    )
+
+    for path in required_paths:
+        if not path.exists():
+            raise FileNotFoundError(f"Required input not found: {path}")
+
+    project_config = load_config()
+
+    backtest_config = MVPBacktestConfig.from_mapping(
+        project_config.get(
+            "mvp_backtest",
+            {},
+        )
+    )
+
+    execution_config = ExecutionCostConfig.from_mapping(
+        project_config.get(
+            "execution_costs",
+            {},
+        )
+    )
+
+    evaluation_config = PerformanceEvaluationConfig.from_mapping(
+        project_config.get(
+            "mvp_performance_evaluation",
+            {},
+        )
+    )
+
+    predictions = _normalize_fold_ids(
+        pd.read_parquet(PREDICTIONS_PATH),
+        dataset_name="OOS predictions",
+    )
+
+    stored_final_signal = _normalize_fold_ids(
+        pd.read_parquet(FINAL_SIGNAL_PATH),
+        dataset_name="Stored final alpha signal",
+    )
+
+    csv_validation_weights = _normalize_fold_ids(
+        pd.read_csv(VALIDATION_WEIGHTS_PATH),
+        dataset_name="Ensemble validation weights",
+    )
+
+    validation_weights = _validation_weights_from_stored_signal(stored_final_signal)
+
+    _audit_csv_weights(
+        validation_weights,
+        csv_validation_weights,
+    )
+
+    _validate_fold_id_alignment(
+        predictions,
+        validation_weights,
+    )
+
+    market_data = pd.read_parquet(MARKET_DATA_PATH)
+
+    risk_estimates = pd.read_parquet(RISK_ESTIMATES_PATH)
+
+    spy_data = pd.read_parquet(SPY_DATA_PATH)
+
+    logger.info("Reconstructing frozen ensemble with production-persisted fold weights.")
+
+    signals = _build_ablation_signals(
+        predictions,
+        validation_weights,
+        stored_final_signal,
+    )
+
+    logger.info("Building score-weighted ablation portfolios.")
+
+    weights = _build_portfolios(signals)
+
+    diagnostics = compute_portfolio_diagnostics(
+        weights,
+        weight_tolerance=WEIGHT_TOLERANCE,
+    )
+
+    targets = _prepare_targets(weights)
+
+    net_config = replace(
+        backtest_config,
+        transaction_cost_bps=0.0,
+    )
+
+    logger.info("Running ensemble-component ablation backtests.")
+
+    outputs = run_mvp_backtest(
+        targets,
+        market_data,
+        config=net_config,
+        risk_estimates=risk_estimates,
+        execution_cost_config=execution_config,
+    )
+
+    start_date = pd.to_datetime(outputs.daily_performance["date"]).min()
+
+    end_date = pd.to_datetime(outputs.daily_performance["date"]).max()
+
+    benchmark = build_buy_and_hold_benchmark(
+        spy_data,
+        strategy_name=(evaluation_config.benchmark_name),
+        ticker=(evaluation_config.benchmark_ticker),
+        start_date=start_date,
+        end_date=end_date,
+        initial_capital=(net_config.initial_capital),
+        transaction_cost_bps=(execution_config.linear_cost_bps),
+    )
+
+    evaluation = evaluate_performance(
+        outputs.daily_performance,
+        benchmark,
+        initial_capital=(net_config.initial_capital),
+        config=evaluation_config,
+    )
+
+    performance = _strategy_performance(
+        evaluation.performance_summary,
+        benchmark_name=(evaluation_config.benchmark_name),
+    )
+
+    results = _build_results(
+        performance,
+        outputs.execution_summary,
+        diagnostics,
+    )
+
+    checks = _build_checks(
+        signals,
+        weights,
+        results,
+    )
+
+    failed_checks = int(checks["status"].eq("FAIL").sum())
+
+    _write_parquet(
+        signals,
+        ABLATION_SIGNALS_PATH,
+    )
+
+    _write_parquet(
+        weights,
+        ABLATION_WEIGHTS_PATH,
+    )
+
+    _write_csv(
+        results,
+        RESULTS_PATH,
+    )
+
+    _write_csv(
+        diagnostics,
+        DIAGNOSTICS_PATH,
+    )
+
+    _write_csv(
+        checks,
+        CHECKS_PATH,
+    )
+
+    REPORT_PATH.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    REPORT_PATH.write_text(
+        _build_report(
+            results,
+            checks,
+        ),
+        encoding="utf-8",
+    )
+
+    if failed_checks:
+        raise ValueError(
+            f"Ensemble-component ablation validation failed with {failed_checks} failed checks."
+        )
+
+    logger.info("Ensemble-component ablation analysis completed.")
+
+    print()
+
+    print("Institutional Quant Equity Research Platform")
+
+    print("Ensemble component ablation")
+
+    print("------------------------------------------------")
+
+    print(f"scenarios: {results['strategy_name'].nunique()}")
+
+    print()
+
+    print("Ablation results:")
+
+    print(
+        results.loc[
+            :,
+            [
+                "strategy_name",
+                "is_baseline",
+                "cagr",
+                "cagr_difference_vs_full",
+                "sharpe_ratio",
+                "sharpe_difference_vs_full",
+                "maximum_drawdown",
+                "excess_cagr",
+                "excess_cagr_difference_vs_full",
+                "mean_one_way_turnover",
+                "maximum_sector_weight",
+                "effective_cost_bps",
+            ],
+        ].to_string(index=False)
+    )
+
+    print()
+
+    print(f"readiness_checks: {len(checks)}")
+
+    print(f"failed_readiness_checks: {failed_checks}")
+
+    print()
+
+    print(f"Signals: {ABLATION_SIGNALS_PATH}")
+
+    print(f"Weights: {ABLATION_WEIGHTS_PATH}")
+
+    print(f"Results table: {RESULTS_PATH}")
+
+    print(f"Report: {REPORT_PATH}")

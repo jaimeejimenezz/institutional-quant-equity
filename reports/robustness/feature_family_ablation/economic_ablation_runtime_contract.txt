@@ -1,0 +1,136 @@
+Institutional Quant Equity Research Platform
+Economic ablation runtime contract
+================================================
+source: C:\Users\Usuario\Documents\PROYECTO_FINTECH\institutional-quant-equity\scripts\run_ensemble_component_ablation.py
+
+Frozen construction constants
+-----------------------------
+CANDIDATE_COUNT = 25
+MAX_SECURITY_WEIGHT = 0.05
+MAX_SECTOR_WEIGHT = 0.25
+MINIMUM_POSITIONS = 20
+WEIGHT_TOLERANCE = 1e-08
+BASELINE_SCENARIO = 'full_ensemble'
+EXPECTED_ABLATIONS = {'without_composite', 'without_elastic_net', 'without_lightgbm_ranker'}
+EXPECTED_SCENARIOS = {'without_composite', 'without_elastic_net', 'full_ensemble', 'without_lightgbm_ranker'}
+
+Reusable helper signatures
+--------------------------
+_portfolio_config() -> 'BaselinePortfolioConfig'
+source:
+def _portfolio_config() -> BaselinePortfolioConfig:
+    """Return the frozen score-weighted portfolio configuration."""
+    config = BaselinePortfolioConfig(
+        candidate_count=CANDIDATE_COUNT,
+        equal_weight_positions=CANDIDATE_COUNT,
+        max_security_weight=MAX_SECURITY_WEIGHT,
+        max_sector_weight=MAX_SECTOR_WEIGHT,
+        minimum_positions=MINIMUM_POSITIONS,
+        weight_tolerance=WEIGHT_TOLERANCE,
+    )
+    config.validate()
+    return config
+
+_build_portfolios(signals: 'pd.DataFrame') -> 'pd.DataFrame'
+source:
+def _build_portfolios(
+    signals: pd.DataFrame,
+) -> pd.DataFrame:
+    """Construct one score-weighted portfolio for every ablation signal."""
+    config = _portfolio_config()
+
+    blocks = []
+
+    for scenario, signal in signals.groupby(
+        "scenario",
+        sort=True,
+    ):
+        weights = build_score_weighted_portfolios(
+            signal,
+            config=config,
+        ).copy()
+
+        weights["method"] = str(scenario)
+
+        blocks.append(weights)
+
+    return (
+        pd.concat(
+            blocks,
+            ignore_index=True,
+        )
+        .sort_values(
+            [
+                "method",
+                "as_of_date",
+                "ticker",
+            ]
+        )
+        .reset_index(drop=True)
+    )
+
+_strategy_performance(summary: 'pd.DataFrame', *, benchmark_name: 'str') -> 'pd.DataFrame'
+source:
+def _strategy_performance(
+    summary: pd.DataFrame,
+    *,
+    benchmark_name: str,
+) -> pd.DataFrame:
+    """Return only portfolio-strategy rows."""
+    return (
+        summary.loc[~summary["strategy_name"].eq(benchmark_name)]
+        .sort_values("strategy_name")
+        .reset_index(drop=True)
+    )
+
+
+Backtest/evaluation config assignments inside main()
+-----------------------------------------------
+backtest_config = MVPBacktestConfig.from_mapping(
+        project_config.get(
+            "mvp_backtest",
+            {},
+        )
+    )
+execution_config = ExecutionCostConfig.from_mapping(
+        project_config.get(
+            "execution_costs",
+            {},
+        )
+    )
+evaluation_config = PerformanceEvaluationConfig.from_mapping(
+        project_config.get(
+            "mvp_performance_evaluation",
+            {},
+        )
+    )
+net_config = replace(
+        backtest_config,
+        transaction_cost_bps=0.0,
+    )
+outputs = run_mvp_backtest(
+        targets,
+        market_data,
+        config=net_config,
+        risk_estimates=risk_estimates,
+        execution_cost_config=execution_config,
+    )
+benchmark = build_buy_and_hold_benchmark(
+        spy_data,
+        strategy_name=(evaluation_config.benchmark_name),
+        ticker=(evaluation_config.benchmark_ticker),
+        start_date=start_date,
+        end_date=end_date,
+        initial_capital=(net_config.initial_capital),
+        transaction_cost_bps=(execution_config.linear_cost_bps),
+    )
+evaluation = evaluate_performance(
+        outputs.daily_performance,
+        benchmark,
+        initial_capital=(net_config.initial_capital),
+        config=evaluation_config,
+    )
+performance = _strategy_performance(
+        evaluation.performance_summary,
+        benchmark_name=(evaluation_config.benchmark_name),
+    )

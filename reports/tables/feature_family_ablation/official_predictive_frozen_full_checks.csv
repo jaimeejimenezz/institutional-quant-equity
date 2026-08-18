@@ -1,0 +1,6 @@
+check,status,observed,expected,absolute_difference,tolerance
+full_mean_ic,PASS,0.04637952226585562,0.04638,4.777341443759631e-07,5e-06
+full_annualized_ic_ir,PASS,0.9483160890234665,0.948316,8.902346648742565e-08,5e-06
+full_mean_top_bottom_spread,PASS,0.013565525539957128,0.013566,4.7446004287216015e-07,5e-06
+full_mean_top_quintile_precision,PASS,0.2545454545454546,0.254545,4.5454545455347883e-07,5e-06
+full_mean_top_quintile_turnover,PASS,0.40921052631578947,0.409211,4.7368421052240706e-07,5e-06

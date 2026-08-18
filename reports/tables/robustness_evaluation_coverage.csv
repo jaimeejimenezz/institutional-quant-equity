@@ -1,0 +1,14 @@
+dimension,category,status,note
+calendar_years_and_market_regimes,temporal,COMPLETE,"Calendar years, COVID-related periods, up/down markets and high-volatility conditions."
+transaction_cost_assumptions,parameters,COMPLETE,Linear cost scenarios plus the liquidity-dependent execution model.
+top_n_and_security_caps,parameters,COMPLETE,Top-N and maximum-security-weight sensitivity.
+rebalance_frequency,parameters,COMPLETE,Monthly versus calendar-quarter rebalancing.
+evaluation_windows,parameters,COMPLETE,"Overlapping 12-, 24- and 36-month evaluation windows."
+return_horizons,parameters,COMPLETE,"Frozen signal evaluated at 10-, 21- and 42-session realized horizons."
+frozen_universe_exclusions,universe,COMPLETE,"Technology, leave-one-sector-out and largest-liquidity exclusions."
+expanded_universe,universe,DEFERRED_LIMITATION,A genuine expanded-universe experiment requires adding securities and rebuilding the upstream point-in-time pipeline.
+portfolio_return_bootstrap,statistics,COMPLETE,Paired monthly bootstrap for the portfolio methods.
+signal_ic_spread_sector_statistics,statistics,COMPLETE,"IC, spread, yearly and sector stability diagnostics."
+no_fundamentals_and_no_momentum,ablation,COMPLETE,Walk-forward feature-family ablations with predictive and economic comparison.
+no_lightgbm,ablation,COMPLETE,LightGBM Ranker removed from the frozen ensemble.
+no_optimization_no_sector_control_no_turnover_penalty,ablation,COMPLETE,"Non-optimized reference, sector-cap ablation and turnover-penalty ablation."

@@ -1,0 +1,7 @@
+check,status,violations,description
+expected_monthly_rows,PASS,0,Monthly return table must contain 308 rows.
+expected_months,PASS,0,Paired return panel must contain 77 common months.
+expected_strategies,PASS,0,"Paired panel must contain FULL, both feature ablations and SPY."
+complete_pairs,PASS,0,Every strategy must have a return for every paired calendar month.
+bootstrap_scenarios,PASS,0,Bootstrap output must contain both feature ablations.
+finite_bootstrap_statistics,PASS,0,All stored bootstrap statistics must be finite.

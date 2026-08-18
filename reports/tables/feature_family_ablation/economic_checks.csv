@@ -1,0 +1,12 @@
+check,status,violations,description
+expected_scenarios,PASS,0,"The analysis must contain FULL, no fundamentals and no momentum."
+expected_oos_dates,PASS,0,Every feature scenario must contain all 77 frozen OOS dates.
+complete_cross_sections,PASS,0,Every feature scenario must retain the full 50-stock cross-section.
+identical_oos_keys,PASS,0,All scenarios must use exactly the same date-ticker OOS keys as FULL.
+fully_invested,PASS,0,Every feature-family portfolio must sum to one.
+long_only,PASS,0,Feature-family portfolios must remain long-only.
+security_cap,PASS,0,Feature-family portfolios must respect the 5% security cap.
+sector_cap,PASS,0,Feature-family portfolios must respect the 25% sector cap.
+finite_performance,PASS,0,Key economic performance metrics must remain finite.
+positive_final_values,PASS,0,Every feature-family backtest must retain positive final value.
+reference_full_reproduction,PASS,0,FULL must reproduce the previously stored ensemble-component-ablation economic baseline.
