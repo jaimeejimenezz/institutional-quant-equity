@@ -1,5 +1,13 @@
 # Institutional Quant Equity Research Platform
 
+## Live Dashboard
+
+**[Open the Institutional Quant Equity Research Dashboard →](https://institutional-quant-equity.streamlit.app/)**
+
+Explore the frozen out-of-sample research release interactively: alpha ranking, portfolio construction, risk, execution and capacity, model diagnostics, robustness, and data-quality controls.
+
+> Historical out-of-sample research simulation. Not investment advice and not a live track record.
+
 An end-to-end quantitative equity research platform for systematic US equity
 selection, portfolio construction, risk modeling, execution-aware backtesting,
 robustness analysis, and interactive research reporting.
